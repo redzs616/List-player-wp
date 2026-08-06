@@ -1,0 +1,134 @@
+/**
+ * Track edit screen and track list styling.
+ *
+ * @package PL_Player
+ */
+
+/* --- Details panel --- */
+
+.plp-meta__legend {
+	margin: 0 0 8px;
+	font-size: 13px;
+}
+
+.plp-source-toggle label {
+	margin-right: 20px;
+}
+
+.plp-source {
+	padding: 12px 14px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.plp-source[hidden] {
+	display: none;
+}
+
+.plp-audio-name {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 0 0 8px;
+	font-weight: 600;
+}
+
+.plp-audio-name .dashicons {
+	color: #646970;
+}
+
+#plp-audio-player {
+	width: 100%;
+	max-width: 480px;
+}
+
+.plp-remove {
+	margin-left: 8px;
+	color: #b32d2e;
+}
+
+.plp-remove[hidden] {
+	display: none;
+}
+
+#plp-audio-preview[hidden] {
+	display: none;
+}
+
+.plp-duration-hint {
+	margin-left: 8px;
+	color: #646970;
+}
+
+.plp-meta__table th {
+	width: 140px;
+}
+
+/* --- Statistics block --- */
+
+.plp-stats {
+	display: flex;
+	gap: 24px;
+	margin: 0 0 8px;
+}
+
+.plp-stat {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.plp-stat .dashicons {
+	color: #646970;
+}
+
+/* --- Track list columns --- */
+
+.column-plp_cover {
+	width: 60px;
+}
+
+.column-plp_duration,
+.column-plp_plays,
+.column-plp_likes {
+	width: 90px;
+}
+
+.plp-col-cover {
+	display: block;
+	width: 48px;
+	height: 48px;
+	border-radius: 3px;
+	object-fit: cover;
+}
+
+.plp-col-cover--empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	background: #f0f0f1;
+	color: #a7aaad;
+	font-size: 22px;
+}
+
+.plp-muted {
+	color: #a7aaad;
+}
+
+.plp-badge {
+	display: inline-block;
+	padding: 2px 8px;
+	background: #f0f0f1;
+	border-radius: 10px;
+	color: #50575e;
+	font-size: 11px;
+	line-height: 1.7;
+}
+
+.plp-badge--warning {
+	background: #fcf0f1;
+	color: #b32d2e;
+}

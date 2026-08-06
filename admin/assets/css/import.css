@@ -1,0 +1,176 @@
+/**
+ * Bulk import screen.
+ *
+ * @package PL_Player
+ */
+
+.plp-import__intro {
+	max-width: 800px;
+}
+
+.plp-spinner {
+	float: none;
+	margin: 0 0 0 6px;
+	vertical-align: middle;
+	visibility: hidden;
+}
+
+.plp-spinner.is-active {
+	visibility: visible;
+}
+
+.plp-notice[hidden] {
+	display: none;
+}
+
+#plp-import-form[hidden] {
+	display: none;
+}
+
+/* --- Settings panel --- */
+
+.plp-panel {
+	margin: 20px 0;
+	padding: 4px 20px 16px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba( 0, 0, 0, 0.04 );
+}
+
+.plp-panel__title {
+	padding-bottom: 8px;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 14px;
+}
+
+.plp-panel__grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 280px, 1fr ) );
+	gap: 8px 40px;
+}
+
+.plp-panel__grid h3 {
+	margin: 12px 0 6px;
+	font-size: 13px;
+}
+
+.plp-checklist-wrap {
+	max-height: 220px;
+	padding: 8px 10px;
+	overflow-y: auto;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+}
+
+.plp-checklist {
+	margin: 0;
+	list-style: none;
+}
+
+.plp-checklist .plp-checklist {
+	margin-left: 18px;
+}
+
+.plp-checklist li {
+	margin: 0 0 4px;
+}
+
+/* --- Preview table --- */
+
+.plp-import-table {
+	margin-bottom: 16px;
+}
+
+.plp-import-table td,
+.plp-import-table th {
+	vertical-align: middle;
+}
+
+.plp-import-table .check-column {
+	width: 32px;
+	padding-left: 10px;
+}
+
+.plp-import-table .plp-field {
+	width: 100%;
+}
+
+.plp-import-table .plp-field--year {
+	width: 80px;
+}
+
+.plp-col-file {
+	max-width: 220px;
+	color: #50575e;
+	font-size: 12px;
+	word-break: break-all;
+}
+
+.plp-col-duration,
+.plp-col-flag {
+	width: 70px;
+	text-align: center;
+}
+
+.plp-col-status {
+	width: 130px;
+	font-size: 12px;
+}
+
+.plp-row--skipped {
+	opacity: 0.6;
+}
+
+.plp-status--pending {
+	color: #787c82;
+}
+
+.plp-status--working {
+	color: #2271b1;
+}
+
+.plp-status--created {
+	color: #007017;
+	font-weight: 600;
+}
+
+.plp-status--skipped {
+	color: #8a6d00;
+}
+
+.plp-status--failed {
+	color: #b32d2e;
+}
+
+/* --- Progress --- */
+
+.plp-progress[hidden] {
+	display: none;
+}
+
+.plp-progress__bar {
+	height: 8px;
+	overflow: hidden;
+	background: #dcdcde;
+	border-radius: 4px;
+}
+
+.plp-progress__bar span {
+	display: block;
+	width: 0;
+	height: 100%;
+	background: #2271b1;
+	transition: width 120ms linear;
+}
+
+.plp-progress__label {
+	margin: 6px 0 0;
+	color: #50575e;
+	font-variant-numeric: tabular-nums;
+}
+
+.plp-actions {
+	margin: 16px 0 0;
+}
