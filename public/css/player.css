@@ -1234,6 +1234,29 @@
 		max-width: 140px;
 	}
 
+	/* Hidden rather than shrunk: phone browsers either block popups or open them as a
+	   new tab, which breaks playback just as a normal navigation does. Offering the
+	   button here would promise something the platform will not deliver — and it was
+	   also what pushed this row onto a second line. */
+	.plp-popout {
+		display: none;
+	}
+
+	/* The listening figures are worth keeping on a phone, but not at full size: the
+	   panel had grown back by 90px, pushing the first track below the fold. */
+	.plp-depth {
+		margin-top: 10px;
+		padding-top: 10px;
+	}
+
+	.plp-depth__curve {
+		height: 20px;
+	}
+
+	.plp-depth__hint {
+		display: none;
+	}
+
 	.plp-hero__inner {
 		flex-direction: column;
 		gap: 14px;
