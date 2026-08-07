@@ -300,6 +300,9 @@
 		setMediaSession( item );
 
 		if ( autoplay ) {
+			// Must happen before play(), see prepareEq().
+			prepareEq();
+
 			audio.play().catch( function () {
 				// Autoplay refused — the visible controls are the way back in.
 				paintPlaying( false );
@@ -313,6 +316,7 @@
 		}
 
 		if ( audio.paused ) {
+			prepareEq();
 			audio.play().catch( function () {} );
 		} else {
 			audio.pause();
@@ -728,11 +732,15 @@
 		}
 
 		if ( 0 === total ) {
-			viz.flatFrames++;
+			// Only count silence against us while something is actually playing; a
+			// paused moment is not evidence of anything.
+			if ( ! audio.paused ) {
+				viz.flatFrames++;
+			}
 
-			// About a second and a half of complete silence while playing means the
-			// analyser cannot see this file — give up rather than show a dead row.
-			if ( viz.flatFrames > 90 ) {
+			// Three seconds of complete silence during playback means the analyser
+			// cannot see this file — give up rather than leave a dead row sitting there.
+			if ( viz.flatFrames > 180 ) {
 				canvas.hidden = true;
 				stopEq();
 
@@ -781,12 +789,31 @@
 		viz.frame = window.requestAnimationFrame( drawEq );
 	}
 
-	function startEq() {
-		if ( reducedMotion || ! eqCanvas() ) {
+	/**
+	 * Builds the audio graph, and must run BEFORE playback starts.
+	 *
+	 * Connecting an element that is already playing hands back silence in Chrome — the
+	 * analyser reports zeros while the sound comes out fine, which looks exactly like a
+	 * CORS problem and is not one. Called from the click handlers, before play().
+	 */
+	function prepareEq() {
+		if ( reducedMotion || viz.failed || viz.analyser || ! eqCanvas() ) {
 			return;
 		}
 
-		if ( ! ensureAnalyser() ) {
+		ensureAnalyser();
+
+		if ( viz.ctx && 'suspended' === viz.ctx.state ) {
+			viz.ctx.resume().catch( function () {} );
+		}
+	}
+
+	function startEq() {
+		if ( reducedMotion || ! eqCanvas() || viz.failed ) {
+			return;
+		}
+
+		if ( ! viz.analyser && ! ensureAnalyser() ) {
 			return;
 		}
 
