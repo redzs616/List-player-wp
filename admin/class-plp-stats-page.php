@@ -178,11 +178,14 @@ class PLP_Stats_Page {
 	 */
 	private static function render_cards( array $totals ) {
 		$cards = array(
-			array( __( 'Összes lejátszás', 'pl-player' ), $totals['plays'] ),
-			array( __( 'Összes kedvelés', 'pl-player' ), $totals['likes'] ),
-			array( __( 'Ma', 'pl-player' ), $totals['today'] ),
-			array( __( 'Utolsó 7 nap', 'pl-player' ), $totals['week'] ),
-			array( __( 'Lejátszható szám', 'pl-player' ), $totals['tracks'] ),
+			array( __( 'Összes lejátszás', 'pl-player' ), number_format_i18n( (int) $totals['plays'] ) ),
+			array( __( 'Összes kedvelés', 'pl-player' ), number_format_i18n( (int) $totals['likes'] ) ),
+			// Not a count but a duration, so it gets the readable form rather than a
+			// raw number of seconds nobody can picture.
+			array( __( 'Összes hallgatott idő', 'pl-player' ), plp_format_listening_time( (int) $totals['seconds'] ) ),
+			array( __( 'Ma', 'pl-player' ), number_format_i18n( (int) $totals['today'] ) ),
+			array( __( 'Utolsó 7 nap', 'pl-player' ), number_format_i18n( (int) $totals['week'] ) ),
+			array( __( 'Lejátszható szám', 'pl-player' ), number_format_i18n( (int) $totals['tracks'] ) ),
 		);
 
 		echo '<div class="plp-cards">';
@@ -191,7 +194,7 @@ class PLP_Stats_Page {
 			printf(
 				'<div class="plp-card"><span class="plp-card__label">%1$s</span><span class="plp-card__value">%2$s</span></div>',
 				esc_html( $card[0] ),
-				esc_html( number_format_i18n( (int) $card[1] ) )
+				esc_html( '' === (string) $card[1] ? '—' : $card[1] )
 			);
 		}
 
@@ -447,6 +450,7 @@ class PLP_Stats_Page {
 				__( 'Kategóriák', 'pl-player' ),
 				__( 'Lejátszás', 'pl-player' ),
 				__( 'Kedvelés', 'pl-player' ),
+				__( 'Hallgatott idő (mp)', 'pl-player' ),
 				__( 'Közzétéve', 'pl-player' ),
 			),
 			';'
@@ -495,6 +499,7 @@ class PLP_Stats_Page {
 						implode( ', ', $categories ),
 						PLP_Stats::plays( $post->ID ),
 						PLP_Stats::likes( $post->ID ),
+						PLP_Stats::seconds( $post->ID ),
 						get_the_date( 'Y-m-d', $post ),
 					),
 					';'

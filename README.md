@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.2.0-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.2.1-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -113,6 +113,92 @@ látogatónak ne kelljen külön kérést indítani.
 
 `Space` lejátszás/megállítás · `←` `→` tekerés 5 másodperccel · `M` némítás
 
+## Saját lejátszási listák
+
+A kategória azt mondja meg, **mi** egy szám. A lejátszási lista azt, hogy **mi követ
+mit** — ez két különböző dolog, ezért külön tartalomtípus, nem újabb taxonómia.
+
+**Lejátszó → Lejátszási listák → Új lista.** A szerkesztőben jobb oldalt keresel, a
+találatra kattintva bekerül; bal oldalt a sorrend, a sorokat a pontozott fogantyúnál
+fogva húzhatod a helyükre. A listák táblázatában ott a kész shortcode.
+
+```
+[playlist_player playlist="nyari-mix"]
+```
+
+Ilyenkor a lista **saját sorrendje** érvényesül, a `category` és az `orderby` nem
+számít. Ha egy szám közben törlődik vagy elveszti a hangfájlját, pirossal jelenik meg
+a listában — nem csendben tűnik el, hogy lásd, hol van lyuk.
+
+A Divi modulban legördülőből választható, a benne lévő számok darabszámával.
+
+## Élő ekvalizér
+
+A kiemelt panel hátterében a sávok a **tényleges hangból** számolódnak a Web Audio
+API-val, nem előre gyártott animáció. A szín a sáv magasságából jön, ahogy egy
+keverőpult LED-létráján: zöld a kényelmes tartomány, sárga a hangosabb, piros a csúcs.
+Egy halk sáv végig zöld marad, ugyanaz a sáv hangos résznél átmegy sárgába és
+belenyúl a pirosba.
+
+```css
+.plp {
+    --plp-eq-low:  #35d07f;
+    --plp-eq-mid:  #f5c542;
+    --plp-eq-high: #e8453c;
+}
+```
+
+**Két dolog, ami miatt nem indul el:**
+
+Ha a látogató **csökkentett mozgást** kér (Windowson: Kisegítő lehetőségek → Vizuális
+effektusok → Animációs effektusok kikapcsolva), az `equalizer="yes"` tiszteletben
+tartja, és nem animál. Az `equalizer="always"` felülírja ezt.
+
+Ha a hangfájl **más domainről jön CORS fejlécek nélkül**, az elemző csendet lát, és a
+sávok nem jelennek meg — a hang viszont szól. A bővítmény szándékosan nem kényszeríti
+a böngészőt CORS módba, mert az a lejátszást törné el olyan szervereken, amik nem
+küldenek ilyen fejlécet. Egy díszítésért nem érdemes feláldozni a hangot.
+
+## Popup lejátszó
+
+Egy sima oldalváltás megszünteti a JavaScript környezetet, és vele az audio elemet is.
+Ez a böngésző működése, az oldalon belülről nem kerülhető meg. Ezért van a keresősor
+jobb szélén egy **„Külön ablakban"** gomb: megnyílik egy kis ablak, és **ott
+folytatja** ugyanazt a számot ugyanattól a másodperctől, az oldali lejátszó pedig
+megáll. Onnantól szabadon járkálhatsz az oldalon.
+
+Telefonon a gomb **nincs ott**, mert a mobilböngészők a felugró ablakot vagy blokkolják,
+vagy új fülként nyitják — ami ugyanúgy megszakítja a hangot. Ott a lejátszó megjegyzi a
+pozíciót, és a következő oldalon egy koppintással folytatja.
+
+Ha a látogató kilép a böngészőből, a hang a **háttérben tovább szól**, és a zárolt
+képernyőn látszik a cím meg a borító (MediaSession).
+
+## Kinézet
+
+Minden állítható érték CSS változó, tehát a bővítmény fájljait nem kell szerkeszteni.
+Divi-ben a **Téma beállítások → Egyéni CSS** mezőbe, vagy a modul **Egyéni CSS**
+fülére.
+
+| Változó | Alap | Mit szabályoz |
+|---|---|---|
+| `--plp-accent` | `#4a9eff` | Lejátszás gomb, aktív kategória, tekerő sáv |
+| `--plp-surface` | áttetsző | Sorok és panelek háttere |
+| `--plp-surface-hover` | áttetsző | Sor háttere hover állapotban |
+| `--plp-border` | áttetsző | Keretek és elválasztók |
+| `--plp-radius` | `10px` | Sarkok lekerekítése |
+| `--plp-gap` | `12px` | Elemek közti térköz |
+| `--plp-eq-low` / `-mid` / `-high` | zöld / sárga / piros | Az ekvalizér színsávjai |
+
+A `theme="auto"` (alapértelmezés) átveszi az oldal szövegszínét és áttetsző felületeket
+használ, tehát világos és sötét szakaszon is működik. A `dark` és `light` fixen
+beállítja. A nagy kiemelt panel és az alsó lejátszósáv szándékosan mindig sötét
+üveghatású — világos oldalon is így néz ki szándékosnak.
+
+Aminek nincs borítóképe, az kap egy **saját színt a bejegyzés azonosítójából** és a cím
+kezdőbetűjét. Ugyanaz a szám mindig ugyanazt a színt kapja, tehát a lista nem egyforma
+szürke négyzetek sora lesz.
+
 ## Milyen tartalmat játszik
 
 Alapból a bővítmény saját **Zeneszámok** tartalomtípusát. A **Lejátszó →
@@ -160,9 +246,19 @@ töltődnek. Így page cache mellett sem fagynak be.
   tartalmaz.
 - **Nyers IP-cím nem kerül az adatbázisba.** Csak egy rövid életű, sózott hash a
   kérés-limithez, ami a limit ablakának lejártával eltűnik.
+- A hallgatási görbe és a hallgatott idő **összesített**: egyetlen tárolt érték sem
+  köthető látogatóhoz. A görbe 20 szeletes felbontása szándékosan durva — ennél
+  finomabb bontásból már egy-egy munkamenet is kirajzolódhatna.
+- Egy **napi ütemezett feladat** (éjjel 3-kor, a site időzónájában) az egy évnél
+  régebbi eseményekből kitörli a látogató-azonosítót, két évnél régebben pedig magukat
+  a sorokat is, kötegelve. A kimutatások nem változnak, a tábla nem nő a végtelenbe.
 - A bővítmény **törlésekor alapértelmezésben minden adat megmarad.** A zenék, a
   kategóriák és a statisztika csak akkor törlődik, ha a Beállításokban ezt kifejezetten
-  bekapcsolták.
+  bekapcsolták. Ilyenkor a három tábla, a bővítmény mezői minden érintett bejegyzésen,
+  az ütemezett feladat és a beállítások is eltűnnek.
+
+**A hallgatási mélység új mérés**, ezért érdemes egy sorral megemlíteni az adatkezelési
+tájékoztatóban.
 
 ## REST API
 
@@ -226,21 +322,43 @@ szinten van:
 pl-player.php              belépési pont, verzió, betöltés
 uninstall.php              takarítás törléskor (alapból nem töröl adatot)
 includes/
-  functions.php            segédfüggvények, beállítások
-  class-plp-activator.php  adatbázis séma, verziókövetés
-  class-plp-post-types.php poszttípus és taxonómiák
-  class-plp-meta.php       zeneszám mezők, adatlap, ID3
-  class-plp-importer.php   tömeges import, borító-import
-  class-plp-source.php     hangforrás felismerés, lekérdezés-építés
-  class-plp-visitor.php    látogató-azonosítás, kérés-limit
-  class-plp-stats.php      számlálók, események, kedvelések
-  class-plp-rest.php       REST végpontok
-  class-plp-renderer.php   frontend HTML
-  class-plp-shortcode.php  [playlist_player]
-  class-plp-updater.php    GitHub frissítés-figyelő
-admin/                     admin képernyők és eszközeik
-public/                    frontend CSS és JS
+  functions.php               segédfüggvények, beállítások
+  class-plp-activator.php     adatbázis séma, verziókövetés
+  class-plp-post-types.php    poszttípusok és taxonómiák
+  class-plp-meta.php          zeneszám mezők, adatlap, ID3
+  class-plp-playlist.php      lejátszási listák, track-választó
+  class-plp-importer.php      tömeges import, borító-import
+  class-plp-source.php        hangforrás felismerés, lekérdezés-építés
+  class-plp-visitor.php       látogató-azonosítás, kérés-limit
+  class-plp-stats.php         számlálók, események, hallgatási mélység
+  class-plp-rest.php          REST végpontok
+  class-plp-renderer.php      frontend HTML
+  class-plp-shortcode.php     [playlist_player] és [playlist_stats]
+  class-plp-popup.php         önálló popup lejátszó oldal
+  class-plp-cron.php          napi naplótömörítés
+  class-plp-updater.php       GitHub frissítés-figyelő
+  class-plp-divi.php          Divi regisztráció és legördülők
+  class-plp-divi-module.php   a Divi modul maga
+admin/
+  class-plp-admin.php         zeneszám lista és adatlap
+  class-plp-import-page.php   tömeges import képernyő
+  class-plp-settings-page.php beállítások
+  class-plp-stats-page.php    statisztika riport és CSV
+public/                       frontend CSS és JS
 ```
+
+## Admin felületek
+
+Minden a bal oldali **Lejátszó** menü alatt:
+
+| Menüpont | Mire jó |
+|---|---|
+| Összes szám | A zenetár borítóval, előadóval, hosszal, hangfájl állapottal, számlálókkal. Rendezhető oszlopok. Piros jelzés, ha egy számhoz nincs hangfájl. |
+| Lejátszási listák | Kézzel összeválogatott listák, fogd-és-vidd sorrenddel |
+| Kategóriák · Címkék | Hierarchikus kategóriák és szabad címkézés |
+| Tömeges import | Több MP3 egyszerre, ID3 előnézettel, duplikátum-védelemmel |
+| Statisztika | Összesítő kártyák, napi grafikon, top listák, kategóriabontás, CSV |
+| Beállítások | Tartalomtípusok, nyilvános adatok, lejátszás-küszöb, GitHub frissítés |
 
 ## Horgok fejlesztőknek
 
@@ -254,11 +372,24 @@ public/                    frontend CSS és JS
 
 ## Fejlesztési állapot
 
-Elkészült: alapok · tömeges import · statisztika motor és REST API · frontend
-lejátszó · kiemelt panelos dizájn · GitHub frissítés
+Az eredetileg megtervezett funkciók mind elkészültek: zenetár hierarchikus
+kategóriákkal · saját lejátszási listák · tömeges import ID3-mal · statisztika motor és
+REST API · frontend lejátszó három elrendezésben · kiemelt panelos dizájn · nyilvános
+statisztika és hallgatási görbe · popup lejátszó · élő ekvalizér · Divi modul · napi
+naplótömörítés · GitHub frissítés.
 
-Hátra van: saját Divi modul, hogy shortcode helyett kattintva legyen állítható ·
-admin statisztika képernyő grafikonokkal és CSV exporttal
+**Amit nem tudtam éles környezetben tesztelni**, mert nincs hozzá gépem: a **Divi
+modul** működése. Minden más darabot méréssel vagy futtatással ellenőriztem.
+
+**Tudatos kihagyások:**
+
+- Nincs fordítási fájl. A bővítmény minden szövege eleve magyar, tehát a `.po` csak
+  akkor kellene, ha angolul is kellene.
+- A `[playlist_stats]` blokk a szerveren renderelődik, tehát page cache mellett
+  néhány óráig állhat elavult adaton. Egy statisztika oldalnál ez jó csere azért, hogy
+  ne minden látogató indítson külön kérést.
+- A hallgatási mérés kliensoldali, tehát elvben hamisítható. Aggregált, nyilvános
+  megjelenítéshez ez elfogadható; pénzben elszámolt jogdíjhoz nem lenne elég.
 
 ## Licenc
 

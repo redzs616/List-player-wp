@@ -546,6 +546,13 @@ class PLP_Stats {
 			)
 		);
 
+		$seconds = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT SUM( CAST( meta_value AS UNSIGNED ) ) FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				'_pl_seconds'
+			)
+		);
+
 		$today = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE event_type = %s AND created_at >= %s",
@@ -570,11 +577,12 @@ class PLP_Stats {
 		}
 
 		return array(
-			'plays'  => $plays,
-			'likes'  => $likes,
-			'today'  => $today,
-			'week'   => $week,
-			'tracks' => $tracks,
+			'plays'   => $plays,
+			'likes'   => $likes,
+			'seconds' => $seconds,
+			'today'   => $today,
+			'week'    => $week,
+			'tracks'  => $tracks,
 		);
 	}
 
