@@ -61,6 +61,8 @@ class PLP_Renderer {
 				'accent'    => '',
 				'theme'     => 'auto',
 				'popup'     => 'yes',
+				'playlist'  => '',
+				'equalizer' => 'yes',
 			),
 			is_array( $atts ) ? $atts : array(),
 			'playlist_player'
@@ -92,6 +94,8 @@ class PLP_Renderer {
 			'accent'     => sanitize_hex_color( (string) $atts['accent'] ),
 			'theme'      => in_array( $atts['theme'], array( 'auto', 'dark', 'light' ), true ) ? $atts['theme'] : 'auto',
 			'show_popup' => self::is_yes( $atts['popup'] ),
+			'playlist'   => PLP_Playlist::resolve( $atts['playlist'] ),
+			'equalizer'  => self::is_yes( $atts['equalizer'] ),
 		);
 	}
 
@@ -150,7 +154,13 @@ class PLP_Renderer {
 	 */
 	public static function render( $atts ) {
 		$config = self::config( $atts );
-		$query  = new WP_Query( PLP_Source::query_args( $config ) );
+
+		// A named playlist replaces the category and sorting logic with its own order.
+		if ( $config['playlist'] ) {
+			$config['include'] = PLP_Playlist::track_ids( $config['playlist'] );
+		}
+
+		$query = new WP_Query( PLP_Source::query_args( $config ) );
 
 		$tracks = array();
 		foreach ( $query->posts as $post ) {
@@ -188,14 +198,16 @@ class PLP_Renderer {
 			data-plp="<?php echo esc_attr( (string) wp_json_encode( $client_config ) ); ?>" <?php echo $style; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 
 			<?php if ( 'hero' === $config['layout'] ) : ?>
-				<?php self::render_hero( $tracks, $show_stats ); ?>
+				<?php self::render_hero( $tracks, $show_stats, $config['equalizer'] ); ?>
 			<?php endif; ?>
 
 			<?php if ( $config['show_nav'] ) : ?>
 				<?php self::render_nav( $config ); ?>
 			<?php endif; ?>
 
-			<?php if ( $config['show_search'] || $config['show_sort'] ) : ?>
+			<?php // The pop-out button counts as a reason to render this row: it must not
+				// disappear just because the search field and the sort control are off. ?>
+			<?php if ( $config['show_search'] || $config['show_sort'] || $config['show_popup'] ) : ?>
 				<div class="plp-toolbar">
 					<?php if ( $config['show_search'] ) : ?>
 						<div class="plp-search">
@@ -269,7 +281,7 @@ class PLP_Renderer {
 	 * @param array $tracks     Tracks on the first page.
 	 * @param bool  $show_stats Whether the numbers are public.
 	 */
-	private static function render_hero( array $tracks, $show_stats ) {
+	private static function render_hero( array $tracks, $show_stats, $equalizer = true ) {
 		$first = $tracks ? $tracks[0] : null;
 		$cover = $first && $first['cover_large'] ? $first['cover_large'] : ( $first ? $first['cover'] : '' );
 		$hue   = $first ? (int) $first['hue'] : 250;
@@ -285,6 +297,12 @@ class PLP_Renderer {
 		?>
 		<div class="plp-hero" data-plp-hero>
 			<span class="plp-hero__backdrop" aria-hidden="true" style="<?php echo esc_attr( $backdrop ); ?>"></span>
+
+			<?php if ( $equalizer ) : ?>
+				<?php // Driven by the actual audio through the Web Audio API. Hidden until
+					// there is real signal to draw, so a silent canvas never sits there. ?>
+				<canvas class="plp-hero__eq" data-plp-eq aria-hidden="true" hidden></canvas>
+			<?php endif; ?>
 
 			<div class="plp-hero__inner">
 				<div class="plp-hero__cover">

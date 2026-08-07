@@ -65,6 +65,15 @@ class PLP_Divi_Player_Module extends ET_Builder_Module {
 	 */
 	public function get_fields() {
 		return array(
+			'plp_playlist'  => array(
+				'label'           => esc_html__( 'Lejátszási lista', 'pl-player' ),
+				'type'            => 'select',
+				'option_category' => 'basic_option',
+				'options'         => PLP_Divi::playlist_options(),
+				'default'         => '',
+				'description'     => esc_html__( 'Ha választasz egyet, a saját sorrendje érvényesül, és a kategória meg a sorrend beállítás nem számít.', 'pl-player' ),
+				'toggle_slug'     => 'plp_content',
+			),
 			'plp_category'  => array(
 				'label'            => esc_html__( 'Kategória', 'pl-player' ),
 				'type'             => 'select',
@@ -221,6 +230,7 @@ class PLP_Divi_Player_Module extends ET_Builder_Module {
 
 		return PLP_Renderer::render(
 			array(
+				'playlist'     => (string) $value( 'plp_playlist' ),
 				'terms'        => (string) $value( 'plp_category' ),
 				'post_type'    => (string) $value( 'plp_post_type' ),
 				'orderby'      => (string) $value( 'plp_orderby', 'date' ),

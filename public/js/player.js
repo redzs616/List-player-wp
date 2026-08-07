@@ -645,6 +645,179 @@
 	}
 
 	/* ------------------------------------------------------------------
+	 * Live equalizer
+	 *
+	 * Reads the real signal through the Web Audio API rather than faking motion.
+	 * Two things this has to survive:
+	 *
+	 * - Routing the element through a graph means we must reconnect it to the speakers,
+	 *   otherwise the sound disappears.
+	 * - A file served from another origin without CORS headers reads as pure silence.
+	 *   We do NOT set crossOrigin on the element, because that would break playback
+	 *   outright on servers that send no CORS headers — a decoration must never cost
+	 *   the audio. Instead, if the analyser stays flat while something is clearly
+	 *   playing, the canvas simply stays hidden.
+	 * --------------------------------------------------------------- */
+
+	var viz = {
+		ctx: null,
+		analyser: null,
+		data: null,
+		frame: null,
+		flatFrames: 0,
+		failed: false
+	};
+
+	var reducedMotion = window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
+
+	function eqCanvas() {
+		return currentList ? q( '[data-plp-eq]', currentList ) : null;
+	}
+
+	function ensureAnalyser() {
+		if ( viz.analyser || viz.failed ) {
+			return ! viz.failed;
+		}
+
+		var Ctx = window.AudioContext || window.webkitAudioContext;
+
+		if ( ! Ctx ) {
+			viz.failed = true;
+
+			return false;
+		}
+
+		try {
+			viz.ctx = new Ctx();
+
+			var source = viz.ctx.createMediaElementSource( audio );
+
+			viz.analyser = viz.ctx.createAnalyser();
+			viz.analyser.fftSize = 128;
+			viz.analyser.smoothingTimeConstant = 0.78;
+
+			source.connect( viz.analyser );
+			// Back to the speakers, or nothing would be audible from here on.
+			viz.analyser.connect( viz.ctx.destination );
+
+			viz.data = new Uint8Array( viz.analyser.frequencyBinCount );
+		} catch ( error ) {
+			viz.failed = true;
+			viz.analyser = null;
+
+			return false;
+		}
+
+		return true;
+	}
+
+	function drawEq() {
+		var canvas = eqCanvas();
+
+		if ( ! canvas || ! viz.analyser ) {
+			return;
+		}
+
+		viz.analyser.getByteFrequencyData( viz.data );
+
+		var total = 0;
+		var i;
+
+		for ( i = 0; i < viz.data.length; i++ ) {
+			total += viz.data[ i ];
+		}
+
+		if ( 0 === total ) {
+			viz.flatFrames++;
+
+			// About a second and a half of complete silence while playing means the
+			// analyser cannot see this file — give up rather than show a dead row.
+			if ( viz.flatFrames > 90 ) {
+				canvas.hidden = true;
+				stopEq();
+
+				return;
+			}
+		} else {
+			viz.flatFrames = 0;
+			canvas.hidden = false;
+		}
+
+		var ratio = window.devicePixelRatio || 1;
+		var width = canvas.clientWidth;
+		var height = canvas.clientHeight;
+
+		if ( canvas.width !== Math.round( width * ratio ) || canvas.height !== Math.round( height * ratio ) ) {
+			canvas.width = Math.round( width * ratio );
+			canvas.height = Math.round( height * ratio );
+		}
+
+		var g = canvas.getContext( '2d' );
+
+		g.setTransform( ratio, 0, 0, ratio, 0, 0 );
+		g.clearRect( 0, 0, width, height );
+
+		// The accent colour, so the bars belong to the player rather than to the page.
+		var accent = getComputedStyle( currentList ).getPropertyValue( '--plp-accent' ).trim() || '#4a9eff';
+		var bars = 48;
+		var slot = width / bars;
+		var barWidth = Math.max( 2, slot - 2 );
+
+		g.fillStyle = accent;
+
+		for ( i = 0; i < bars; i++ ) {
+			// Skip the very top of the spectrum: it is mostly empty on music and would
+			// leave a dead flat tail on the right.
+			var bin = Math.floor( ( i / bars ) * ( viz.data.length * 0.72 ) );
+			var value = viz.data[ bin ] / 255;
+			var barHeight = Math.max( 1, value * height );
+
+			g.globalAlpha = 0.18 + ( value * 0.5 );
+			g.fillRect( i * slot + ( slot - barWidth ) / 2, height - barHeight, barWidth, barHeight );
+		}
+
+		g.globalAlpha = 1;
+
+		viz.frame = window.requestAnimationFrame( drawEq );
+	}
+
+	function startEq() {
+		if ( reducedMotion || ! eqCanvas() ) {
+			return;
+		}
+
+		if ( ! ensureAnalyser() ) {
+			return;
+		}
+
+		if ( viz.ctx && 'suspended' === viz.ctx.state ) {
+			viz.ctx.resume().catch( function () {} );
+		}
+
+		if ( null === viz.frame ) {
+			viz.flatFrames = 0;
+			viz.frame = window.requestAnimationFrame( drawEq );
+		}
+	}
+
+	function stopEq() {
+		if ( null !== viz.frame ) {
+			window.cancelAnimationFrame( viz.frame );
+			viz.frame = null;
+		}
+	}
+
+	function fadeEq() {
+		stopEq();
+
+		var canvas = eqCanvas();
+
+		if ( canvas ) {
+			canvas.classList.remove( 'is-live' );
+		}
+	}
+
+	/* ------------------------------------------------------------------
 	 * Sticky bar
 	 * --------------------------------------------------------------- */
 
@@ -1223,11 +1396,21 @@
 		audio.addEventListener( 'play', function () {
 			hasPlayed = true;
 			paintPlaying( true );
+
+			var canvas = eqCanvas();
+
+			if ( canvas ) {
+				canvas.classList.add( 'is-live' );
+			}
+
+			startEq();
 		} );
+
 		audio.addEventListener( 'pause', function () {
 			paintPlaying( false );
 			saveState();
 			flushProgress();
+			fadeEq();
 		} );
 
 		audio.addEventListener( 'timeupdate', function () {
@@ -1240,6 +1423,7 @@
 
 		audio.addEventListener( 'ended', function () {
 			flushProgress();
+			fadeEq();
 
 			if ( repeat ) {
 				audio.currentTime = 0;

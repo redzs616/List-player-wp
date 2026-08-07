@@ -332,6 +332,27 @@ class PLP_Source {
 			'ignore_sticky_posts' => true,
 		);
 
+		// An explicit set of tracks — a hand-built playlist. The chosen order is the
+		// point, so it overrides sorting entirely.
+		if ( isset( $config['include'] ) ) {
+			$include = array_values( array_filter( array_map( 'absint', (array) $config['include'] ) ) );
+
+			// WP_Query treats an empty post__in as "no filter" and would return the whole
+			// library, so an empty playlist has to be spelled out as "match nothing".
+			$args['post__in']       = $include ? $include : array( 0 );
+			$args['orderby']        = 'post__in';
+			$args['posts_per_page'] = $include ? count( $include ) : 1;
+
+			unset( $args['paged'] );
+
+			$search = sanitize_text_field( (string) $config['search'] );
+			if ( '' !== $search ) {
+				$args['s'] = $search;
+			}
+
+			return $args;
+		}
+
 		$search = sanitize_text_field( (string) $config['search'] );
 		if ( '' !== $search ) {
 			$args['s'] = $search;

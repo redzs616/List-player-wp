@@ -96,6 +96,41 @@ class PLP_Divi {
 	}
 
 	/**
+	 * Playlist options for the module's dropdown.
+	 *
+	 * @return array
+	 */
+	public static function playlist_options() {
+		$options = array( '' => esc_html__( 'Nincs — kategória szerint', 'pl-player' ) );
+
+		$playlists = get_posts(
+			array(
+				'post_type'        => PLP_Post_Types::PLAYLIST,
+				'post_status'      => 'publish',
+				'numberposts'      => 100,
+				'orderby'          => 'title',
+				'order'            => 'ASC',
+				'suppress_filters' => false,
+			)
+		);
+
+		foreach ( $playlists as $playlist ) {
+			$count = count( PLP_Playlist::track_ids( $playlist->ID ) );
+
+			$options[ (string) $playlist->ID ] = esc_html(
+				sprintf(
+					/* translators: 1: playlist name, 2: number of tracks. */
+					__( '%1$s (%2$d szám)', 'pl-player' ),
+					$playlist->post_title,
+					$count
+				)
+			);
+		}
+
+		return $options;
+	}
+
+	/**
 	 * Post type options for the module's dropdown.
 	 *
 	 * @return array

@@ -156,12 +156,38 @@
 	transition: background-color 200ms ease;
 }
 
+/* The live equalizer sits between the blurred cover and the content: close enough to
+   read as the panel's own background, far enough back that the text stays legible. */
+
+.plp-hero__eq {
+	position: absolute;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 0;
+	width: 100%;
+	height: 58%;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 400ms ease;
+}
+
+.plp-hero__eq[hidden] {
+	display: none;
+}
+
+.plp-hero__eq.is-live {
+	opacity: 0.55;
+}
+
 .plp-hero__inner {
+	position: relative;
+	z-index: 1;
 	display: flex;
 	gap: 26px;
 	align-items: center;
 	padding: 26px;
-	background: linear-gradient( 135deg, rgba( 10, 12, 16, 0.72 ), rgba( 10, 12, 16, 0.88 ) );
+	background: linear-gradient( 135deg, rgba( 10, 12, 16, 0.62 ), rgba( 10, 12, 16, 0.8 ) );
 }
 
 .plp-hero__cover {

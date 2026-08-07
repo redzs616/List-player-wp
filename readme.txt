@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.0.1
+Stable tag: 1.1.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -65,6 +65,36 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.1.0 — saját lejátszási listák és élő ekvalizér):
+
+* Új **Lejátszási listák** tartalomtípus a Lejátszó menü alatt. Adsz neki egy
+  nevet, és kézzel összeválogatod, mely számok legyenek benne, milyen
+  sorrendben.
+* A szerkesztőben kereső a jobb oldalon, a kiválasztott lista a bal oldalon
+  fogd-és-vidd sorrendezéssel. A sorok mutatják a borítót, előadót és hosszt.
+* A listák oszlopában ott a kész shortcode, egy kattintással kimásolható
+* Új `playlist` paraméter: `[playlist_player playlist="nyari-mix"]`. A lista
+  saját sorrendje érvényesül, a kategória és a rendezés nem számít.
+* A Divi modulban is választható legördülőből, a számok darabszámával
+* Törölt vagy nem lejátszható szám a listában pirossal jelenik meg, nem
+  csendben tűnik el
+
+* **Élő ekvalizér** a kiemelt panel hátterében: a Web Audio API-val a tényleges
+  hangból számolja a sávokat, nem előre gyártott animáció. Lejátszáskor
+  beúszik, megállításkor kiúszik.
+* Az ekvalizér a kiemelő színt veszi fel, és a `equalizer="no"` paraméterrel
+  kikapcsolható
+* Csökkentett mozgást kérő beállítás mellett nem animál
+
+Fontos az ekvalizérről: a hangelemzéshez a böngészőnek hozzá kell férnie a
+hangfájl tartalmához. Ha a fájl más domainről jön CORS fejlécek nélkül, az
+elemző csendet lát — ilyenkor a sávok egyszerűen nem jelennek meg, a hang
+viszont szól. Ez tudatos döntés: a lejátszást soha nem áldozzuk fel egy
+díszítésért.
+
+Javítva: a popup gomb eddig a keresősor belsejében volt, így `search="no"
+sort="no"` mellett eltűnt vele. Most akkor is megjelenik.
 
 Elkészült (9. fázis — Divi modul):
 

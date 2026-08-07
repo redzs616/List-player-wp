@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || exit;
 class PLP_Post_Types {
 
 	const TRACK    = 'pl_track';
+	const PLAYLIST = 'pl_playlist';
 	const CATEGORY = 'pl_category';
 	const TAG      = 'pl_tag';
 
@@ -28,8 +29,56 @@ class PLP_Post_Types {
 	 */
 	public static function register() {
 		self::register_track();
+		self::register_playlist();
 		self::register_category();
 		self::register_tag();
+	}
+
+	/**
+	 * Hand-assembled playlists.
+	 *
+	 * A track belongs to categories by what it is; a playlist is what someone chose to
+	 * put together, in the order they chose. That is a different thing from a taxonomy,
+	 * so it gets its own post type rather than another term.
+	 */
+	private static function register_playlist() {
+		$labels = array(
+			'name'                  => __( 'Lejátszási listák', 'pl-player' ),
+			'singular_name'         => __( 'Lejátszási lista', 'pl-player' ),
+			'menu_name'             => __( 'Lejátszási listák', 'pl-player' ),
+			'all_items'             => __( 'Lejátszási listák', 'pl-player' ),
+			'add_new'               => __( 'Új lista', 'pl-player' ),
+			'add_new_item'          => __( 'Új lejátszási lista', 'pl-player' ),
+			'edit_item'             => __( 'Lista szerkesztése', 'pl-player' ),
+			'new_item'              => __( 'Új lista', 'pl-player' ),
+			'view_item'             => __( 'Lista megtekintése', 'pl-player' ),
+			'search_items'          => __( 'Listák keresése', 'pl-player' ),
+			'not_found'             => __( 'Nem található lejátszási lista.', 'pl-player' ),
+			'not_found_in_trash'    => __( 'Nincs lista a lomtárban.', 'pl-player' ),
+			'featured_image'        => __( 'Lista borítója', 'pl-player' ),
+			'set_featured_image'    => __( 'Borító beállítása', 'pl-player' ),
+			'remove_featured_image' => __( 'Borító eltávolítása', 'pl-player' ),
+		);
+
+		register_post_type(
+			self::PLAYLIST,
+			array(
+				'labels'       => $labels,
+				'public'       => true,
+				'show_ui'      => true,
+				// Sits under the Lejátszó menu next to the tracks it draws from.
+				'show_in_menu' => 'edit.php?post_type=' . self::TRACK,
+				'hierarchical' => false,
+				'supports'     => array( 'title', 'editor', 'thumbnail' ),
+				'has_archive'  => false,
+				'rewrite'      => array(
+					'slug'       => 'lista',
+					'with_front' => false,
+				),
+				'show_in_rest' => true,
+				'rest_base'    => 'pl-playlists',
+			)
+		);
 	}
 
 	/**
