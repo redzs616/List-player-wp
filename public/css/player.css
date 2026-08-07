@@ -19,6 +19,12 @@
 	--plp-gap: 12px;
 	--plp-columns: 3;
 
+	/* Equalizer ladder, read by the canvas. Green is the comfortable range, amber is
+	   getting loud, red is the peak — the convention every mixer already uses. */
+	--plp-eq-low: #35d07f;
+	--plp-eq-mid: #f5c542;
+	--plp-eq-high: #e8453c;
+
 	color: inherit;
 	font-size: 16px;
 	line-height: 1.4;
@@ -188,7 +194,7 @@
 }
 
 .plp-hero__eq.is-live {
-	opacity: 0.55;
+	opacity: 0.72;
 }
 
 .plp-hero__inner {

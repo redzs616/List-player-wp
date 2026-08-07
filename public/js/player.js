@@ -784,22 +784,40 @@
 		g.setTransform( ratio, 0, 0, ratio, 0, 0 );
 		g.clearRect( 0, 0, width, height );
 
-		// The accent colour, so the bars belong to the player rather than to the page.
-		var accent = getComputedStyle( currentList ).getPropertyValue( '--plp-accent' ).trim() || '#4a9eff';
+		var styles = getComputedStyle( currentList );
+		var low = styles.getPropertyValue( '--plp-eq-low' ).trim() || '#35d07f';
+		var mid = styles.getPropertyValue( '--plp-eq-mid' ).trim() || '#f5c542';
+		var high = styles.getPropertyValue( '--plp-eq-high' ).trim() || '#e8453c';
+
+		// One gradient spanning the full height, so a bar's colour is decided by how far
+		// it reaches rather than by which bar it is: quiet stays green, louder passes
+		// through amber, peaks touch red. That is how a mixer's LED ladder behaves, and
+		// it reads at a glance without a legend.
+		var ladder = g.createLinearGradient( 0, height, 0, 0 );
+
+		ladder.addColorStop( 0, low );
+		ladder.addColorStop( 0.55, low );
+		ladder.addColorStop( 0.72, mid );
+		ladder.addColorStop( 0.88, mid );
+		ladder.addColorStop( 1, high );
+
+		g.fillStyle = ladder;
+
 		var bars = 48;
 		var slot = width / bars;
 		var barWidth = Math.max( 2, slot - 2 );
-
-		g.fillStyle = accent;
 
 		for ( i = 0; i < bars; i++ ) {
 			// Skip the very top of the spectrum: it is mostly empty on music and would
 			// leave a dead flat tail on the right.
 			var bin = Math.floor( ( i / bars ) * ( viz.data.length * 0.72 ) );
-			var value = viz.data[ bin ] / 255;
+
+			// A single frequency bin rarely fills to 255 on real music, so without a
+			// little headroom the red band would never be reached at all.
+			var value = Math.min( 1, ( viz.data[ bin ] / 255 ) * 1.35 );
 			var barHeight = Math.max( 1, value * height );
 
-			g.globalAlpha = 0.18 + ( value * 0.5 );
+			g.globalAlpha = 0.5 + ( value * 0.5 );
 			g.fillRect( i * slot + ( slot - barWidth ) / 2, height - barHeight, barWidth, barHeight );
 		}
 
