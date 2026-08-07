@@ -116,6 +116,56 @@ class PLP_Rest {
 
 		register_rest_route(
 			self::NAMESPACE_V1,
+			'/tracks/(?P<id>\d+)/progress',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'post_progress' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'seconds' => array(
+						'type'    => 'integer',
+						'default' => 0,
+					),
+					'buckets' => array(
+						'type'    => 'string',
+						'default' => '',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/tracks/(?P<id>\d+)/stats',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'get_track_stats' ),
+				'permission_callback' => '__return_true',
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/stats/public',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'get_public_stats' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'days'  => array(
+						'type'    => 'integer',
+						'default' => 30,
+					),
+					'limit' => array(
+						'type'    => 'integer',
+						'default' => 10,
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
 			'/tracks/(?P<id>\d+)/like',
 			array(
 				'methods'             => WP_REST_Server::CREATABLE,
@@ -323,6 +373,138 @@ class PLP_Rest {
 		}
 
 		return self::no_store( rest_ensure_response( PLP_Stats::toggle_like( $post_id ) ) );
+	}
+
+	/**
+	 * Records how much of a track was heard.
+	 *
+	 * Arrives by sendBeacon on pause, track change and page unload, so it must stay
+	 * cheap and must never need a custom header.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function post_progress( WP_REST_Request $request ) {
+		$guard = self::guard_write( 'progress', 120, MINUTE_IN_SECONDS );
+		if ( is_wp_error( $guard ) ) {
+			return $guard;
+		}
+
+		$post_id = absint( $request['id'] );
+
+		if ( ! PLP_Source::is_playable( $post_id ) ) {
+			return new WP_Error(
+				'plp_not_playable',
+				__( 'Ez a szám nem játszható le.', 'pl-player' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$buckets = array_map( 'absint', array_filter( explode( ',', (string) $request->get_param( 'buckets' ) ), 'strlen' ) );
+
+		$result = PLP_Stats::record_progress(
+			$post_id,
+			(int) $request->get_param( 'seconds' ),
+			$buckets
+		);
+
+		return self::no_store( rest_ensure_response( $result ) );
+	}
+
+	/**
+	 * Public statistics of one track.
+	 *
+	 * Only aggregates: nothing here can be traced to a visitor.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function get_track_stats( WP_REST_Request $request ) {
+		$post_id  = absint( $request['id'] );
+		$settings = plp_get_settings();
+
+		if ( empty( $settings['public_stats'] ) ) {
+			return new WP_Error(
+				'plp_stats_private',
+				__( 'A statisztika nem nyilvános.', 'pl-player' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		if ( ! PLP_Source::is_playable( $post_id ) ) {
+			return new WP_Error( 'plp_not_found', __( 'Nincs ilyen szám.', 'pl-player' ), array( 'status' => 404 ) );
+		}
+
+		$data = array(
+			'id'    => $post_id,
+			'plays' => PLP_Stats::plays( $post_id ),
+			'likes' => PLP_Stats::likes( $post_id ),
+		);
+
+		if ( ! empty( $settings['public_listening'] ) ) {
+			$seconds = PLP_Stats::seconds( $post_id );
+
+			$data['seconds']       = $seconds;
+			$data['seconds_human'] = plp_format_listening_time( $seconds );
+			$data['curve']         = PLP_Stats::curve( $post_id );
+		}
+
+		return rest_ensure_response( $data );
+	}
+
+	/**
+	 * Public top lists and, if enabled, the traffic trend.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function get_public_stats( WP_REST_Request $request ) {
+		$settings = plp_get_settings();
+
+		if ( empty( $settings['public_stats'] ) ) {
+			return new WP_Error(
+				'plp_stats_private',
+				__( 'A statisztika nem nyilvános.', 'pl-player' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		$limit = max( 1, min( 50, (int) $request->get_param( 'limit' ) ) );
+		$days  = max( 1, min( 90, (int) $request->get_param( 'days' ) ) );
+
+		$data = array(
+			'top_plays' => self::decorate( PLP_Stats::top_tracks( 'plays', $limit, 0 ) ),
+			'top_likes' => self::decorate( PLP_Stats::top_tracks( 'likes', $limit, 0 ) ),
+		);
+
+		if ( ! empty( $settings['public_trend'] ) ) {
+			$data['daily'] = PLP_Stats::daily_plays( $days );
+		}
+
+		return rest_ensure_response( $data );
+	}
+
+	/**
+	 * Turns bare id/value rows into something a front end can render.
+	 *
+	 * @param array $rows Rows from PLP_Stats::top_tracks().
+	 * @return array
+	 */
+	private static function decorate( array $rows ) {
+		$out = array();
+
+		foreach ( $rows as $row ) {
+			$track = PLP_Source::track_data( $row['id'] );
+
+			if ( ! $track ) {
+				continue;
+			}
+
+			$track['value'] = (int) $row['value'];
+			$out[]          = $track;
+		}
+
+		return $out;
 	}
 
 	/* ---------------------------------------------------------------------

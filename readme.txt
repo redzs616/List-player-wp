@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 0.5.0
+Stable tag: 1.0.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -66,6 +66,84 @@ tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézb
 
 == Fejlesztési állapot ==
 
+Elkészült (9. fázis — Divi modul):
+
+* Saját Divi modul: a Divi Builder modullistájában megjelenik a
+  **Lejátszási lista player**, shortcode írása nélkül
+* Kattintással állítható: kategória (legördülőben a valós kategóriafa,
+  behúzott alkategóriákkal), tartalomtípus, sorrend, elemszám, elrendezés,
+  oszlopszám, kategória-navigáció és a látszó kategóriák száma, keresőmező,
+  rendezés választó
+* A kiemelő szín a Tervezés fülön, Divi natív színválasztójával
+* Az oszlopszám csak rács nézetnél, a kategória-limit csak bekapcsolt
+  navigációnál jelenik meg
+* A shortcode változatlanul működik — a modul ugyanazt a renderelőt hívja,
+  csak más bejárat hozzá
+
+Elkészült (8. fázis — nyilvános statisztika és hallgatási mélység):
+
+* Hallgatási mélység mérése: a lejátszó jelenti a tényleges hallgatott
+  másodperceket, és hogy a szám 20 szeletéből melyik ment le. Tekerésnél az
+  átugrott részek nem számítanak.
+* Az adat `navigator.sendBeacon`-nal megy, tehát nem blokkolja az oldalt, és
+  akkor is megérkezik, ha a látogató bezárja a fület
+* Új tábla: `wp_pl_segments` (adatbázis séma 2-es verzió). Frissítéskor magától
+  létrejön, nem kell újraaktiválni.
+* A kiemelt panelen megjelenik az összes hallgatott idő és a visszatartási
+  görbe — látszik, hol esnek ki a hallgatók
+* Új `[playlist_stats]` shortcode: nyilvános top listák és forgalmi grafikon,
+  egy önálló „Legnépszerűbb mixek" oldalhoz
+* Beállításokban külön kapcsoló a hallgatási adatokra és a forgalmi trendre,
+  ha valamelyiket nem szeretnéd kitenni
+* A Beállításokban megjelent egy igazi **Frissítés most** gomb, ami el is
+  végzi a frissítést, nem csak ellenőriz
+
+Fontos: a mérés kliensoldali, tehát elvben hamisítható. Aggregált, nyilvános
+megjelenítéshez ez elfogadható, a percenkénti kérés-limit ugyanúgy véd. Pénzben
+elszámolt jogdíjhoz nem lenne elég.
+
+Adatkezelés: a hallgatási mélység új mérés, érdemes egy sorral megemlíteni az
+adatkezelési tájékoztatóban. Minden tárolt érték összesített, látogatóhoz nem
+köthető.
+
+Elkészült (7. fázis — statisztika képernyő):
+
+* **Lejátszó → Statisztika** képernyő
+* Összesítő kártyák: összes lejátszás, összes kedvelés, ma, utolsó 7 nap,
+  lejátszható számok
+* Napi lejátszás-grafikon 7 / 30 / 90 napos váltóval. Az idősor a site
+  időzónájában vág napot, nem UTC-ben — különben minden nap eltolódna.
+* Top 20 legtöbbet hallgatott és top 20 legkedveltebb, szerkesztő linkkel
+* A periódus nyertesei: az adott időszakban legtöbbet hallgatott 10 szám
+  (ez az esemény naplóból jön, nem az összesített számlálóból)
+* Kategóriánkénti bontás arányjelző sávval
+* CSV export minden lejátszható számról, Excel-kompatibilis kódolással
+
+Mobil javítások (0.6.1 és 0.6.2), valós méréssel ellenőrizve 375x813-on:
+
+* A ragadós sáv 163 pixel magas telefonon, és eddig alá esett a lista vége.
+  Most az oldal helyet tart neki, elfordításnál újraszámolva.
+* iPhone-on a sáv a home indikátor fölé kerül (safe-area)
+* A kategória-sáv vízszintesen csúszó szalag lett: 278 pixelről 36-ra
+* A kiemelt panel 575 pixelről 466-ra
+* A kereső és a rendezés egy sorba került, további 40 pixel
+* 480 pixel alatt szűkebb sorok; a lejátszásszám a sorokból a panelre kerül
+* Javítva: a lejátszósáv magától felugrott a következő oldalon. A kiemelt
+  panel betöltéskor kiválaszt egy számot, és ez úgy mentődött el, mintha a
+  látogató hallgatta volna. Mostantól csak tényleges lejátszás után ment.
+
+
+Elkészült (6. fázis — borító nélküli számok és sok kategória kezelése):
+
+* Helyettesítő borító a kép nélküli számokhoz: a bejegyzés azonosítójából
+  származó saját szín és a cím kezdőbetűje, tehát minden szám külön arcot kap
+  egyforma szürke négyzetek helyett
+* A kiemelt panel háttere borító nélkül is felveszi ezt a színt, nem marad lapos
+* `nav_limit` paraméter: alapból 12 kategória látszik, a többi egy „További N
+  kategória" gomb mögé kerül. Az épp kiválasztott kategória mindig látható.
+* `nav_taxonomy` paraméter: a navigáció egyetlen taxonómiára szűkíthető, ha
+  több tartalomtípus külön kategóriarendszere futna össze egy sávban
+
 Elkészült (5. fázis — kiemelt panelos dizájn):
 
 * Új `layout="hero"` elrendezés: nagy kiemelt panel a kiválasztott számmal —
@@ -106,6 +184,8 @@ Shortcode paraméterek:
         orderby="date|plays|likes|title|random|menu_order"
         order="desc|asc"
         nav="yes|no"              kategória-navigáció
+        nav_limit="12"            ennyi kategória látszik, 0 = mind
+        nav_taxonomy="pl_category"  csak egy taxonómia kategóriái
         search="yes|no"           keresőmező
         sort="yes|no"             rendezés választó
         accent="#f0a12e"          kiemelő szín ]

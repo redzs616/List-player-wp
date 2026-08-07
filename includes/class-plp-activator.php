@@ -31,6 +31,7 @@ class PLP_Activator {
 	 * Runs on plugin deactivation. Data is left untouched.
 	 */
 	public static function deactivate() {
+		PLP_Cron::unschedule();
 		flush_rewrite_rules();
 	}
 
@@ -75,6 +76,17 @@ class PLP_Activator {
 			PRIMARY KEY  (id),
 			KEY track_created (track_id,created_at),
 			KEY type_created (event_type,created_at)
+		) {$charset};";
+
+		// Which slices of a track were actually listened to. One row per track and
+		// slice, so the retention curve is a single indexed read.
+		$schema[] = "CREATE TABLE {$wpdb->prefix}pl_segments (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			track_id bigint(20) unsigned NOT NULL,
+			bucket smallint(5) unsigned NOT NULL,
+			plays bigint(20) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			UNIQUE KEY track_bucket (track_id,bucket)
 		) {$charset};";
 
 		$schema[] = "CREATE TABLE {$likes} (

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Lejátszási Lista Player
  * Description:       Kategóriákba rendezett zenelejátszó, nyilvános lejátszás- és like-statisztikával.
- * Version:           0.5.0
+ * Version:           1.0.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -15,8 +15,8 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PLP_VERSION', '0.5.0' );
-define( 'PLP_DB_VERSION', '1' );
+define( 'PLP_VERSION', '1.0.0' );
+define( 'PLP_DB_VERSION', '2' );
 define( 'PLP_FILE', __FILE__ );
 define( 'PLP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'PLP_URL', plugin_dir_url( __FILE__ ) );
@@ -33,6 +33,9 @@ require_once PLP_PATH . 'includes/class-plp-rest.php';
 require_once PLP_PATH . 'includes/class-plp-renderer.php';
 require_once PLP_PATH . 'includes/class-plp-shortcode.php';
 require_once PLP_PATH . 'includes/class-plp-updater.php';
+require_once PLP_PATH . 'includes/class-plp-divi.php';
+require_once PLP_PATH . 'includes/class-plp-popup.php';
+require_once PLP_PATH . 'includes/class-plp-cron.php';
 
 register_activation_hook( PLP_FILE, array( 'PLP_Activator', 'activate' ) );
 register_deactivation_hook( PLP_FILE, array( 'PLP_Activator', 'deactivate' ) );
@@ -53,6 +56,12 @@ function plp_bootstrap() {
 	PLP_Renderer::init();
 	PLP_Shortcode::init();
 
+	// Only attaches a hook; the module itself loads when Divi says it is ready.
+	PLP_Divi::init();
+
+	PLP_Popup::init();
+	PLP_Cron::init();
+
 	// Deliberately outside the admin branch: WordPress also checks for plugin updates
 	// from WP-Cron, which does not run in an admin context, and background auto-updates
 	// would otherwise never see our package.
@@ -62,10 +71,12 @@ function plp_bootstrap() {
 		require_once PLP_PATH . 'admin/class-plp-admin.php';
 		require_once PLP_PATH . 'admin/class-plp-import-page.php';
 		require_once PLP_PATH . 'admin/class-plp-settings-page.php';
+		require_once PLP_PATH . 'admin/class-plp-stats-page.php';
 
 		PLP_Admin::init();
 		PLP_Import_Page::init();
 		PLP_Settings_Page::init();
+		PLP_Stats_Page::init();
 	}
 
 	PLP_Activator::maybe_upgrade();

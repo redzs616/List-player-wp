@@ -1,0 +1,24 @@
+# Operációs rendszer
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Szerkesztők
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*~
+*.swp
+
+# Csomagolás és függőségek
+pl-player.zip
+/build/
+/dist/
+/node_modules/
+/vendor/
+
+# Naplók és ideiglenes fájlok
+*.log
+*.bak
+*.tmp

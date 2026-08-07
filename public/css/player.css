@@ -29,6 +29,47 @@
 	box-sizing: border-box;
 }
 
+/* Theme. `auto` inherits the page's text colour and uses translucent surfaces, which
+   works on light and dark alike. The explicit variants pin the values for cases where
+   the surrounding section's colour is not what the player should follow. */
+
+.plp--theme-dark {
+	--plp-surface: rgba( 255, 255, 255, 0.07 );
+	--plp-surface-hover: rgba( 255, 255, 255, 0.13 );
+	--plp-border: rgba( 255, 255, 255, 0.16 );
+
+	color: #eef1f5;
+}
+
+.plp--theme-light {
+	--plp-surface: rgba( 0, 0, 0, 0.04 );
+	--plp-surface-hover: rgba( 0, 0, 0, 0.075 );
+	--plp-border: rgba( 0, 0, 0, 0.12 );
+
+	color: #1d2327;
+}
+
+/* --- Pop-out button --- */
+
+.plp-popout {
+	display: inline-flex;
+	flex: 0 0 auto;
+	gap: 6px;
+	align-items: center;
+	padding: 8px 14px;
+	background: var( --plp-surface );
+	border: 1px solid var( --plp-border );
+	border-radius: var( --plp-radius );
+	color: inherit;
+	font: inherit;
+	font-size: 0.85em;
+	cursor: pointer;
+}
+
+.plp-popout:hover {
+	background: var( --plp-surface-hover );
+}
+
 /* ------------------------------------------------------------------
  * Icons — inline masks so they take the surrounding text colour and
  * cost no extra requests.
@@ -72,6 +113,10 @@
 	--plp-i: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M17 3l4 4-4 4V8.5h-1.6L5.4 19H2v-2h2.6L14.6 6.5H17V3zM2 5h3.4l3 3-1.4 1.4L4.6 7H2V5zm15.4 8 3.6 4-3.6 4v-3h-2.8l-2.8-3 1.4-1.4 2.2 2.4h2z'/%3E%3C/svg%3E" );
 }
 
+.plp-icon--popout {
+	--plp-i: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M14 3h7v7h-2V6.4l-8.3 8.3-1.4-1.4L17.6 5H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z'/%3E%3C/svg%3E" );
+}
+
 .plp-icon--repeat {
 	--plp-i: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z'/%3E%3C/svg%3E" );
 }
@@ -102,12 +147,13 @@
 	bottom: -20%;
 	left: -20%;
 	z-index: -1;
+	background-color: hsl( var( --plp-hue, 250 ) 45% 26% );
 	background-position: center;
 	background-size: cover;
 	filter: blur( 44px ) saturate( 1.5 );
 	opacity: 0.55;
 	transform: scale( 1.15 );
-	transition: background-image 200ms ease;
+	transition: background-color 200ms ease;
 }
 
 .plp-hero__inner {
@@ -143,10 +189,33 @@
 .plp-hero__cover-empty {
 	position: absolute;
 	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 64px;
+	font-weight: 500;
+	line-height: 1;
+}
+
+.plp-hero__cover-empty[hidden] {
+	display: none;
+}
+
+.plp-hero__cover img[hidden] {
+	display: none;
+}
+
+/* Placeholder covers: a colour derived from the post id plus the title's first
+   letter, so a library without artwork still reads as a set of distinct records
+   rather than a column of identical grey squares. */
+
+.plp-track__cover-empty,
+.plp-hero__cover-empty {
 	background:
-		radial-gradient( circle at 30% 25%, rgba( 255, 255, 255, 0.14 ), transparent 60% ),
-		var( --plp-accent );
-	opacity: 0.5;
+		radial-gradient( circle at 32% 24%, hsl( var( --plp-hue, 250 ) 55% 46% ), transparent 62% ),
+		linear-gradient( 140deg, hsl( var( --plp-hue, 250 ) 42% 32% ), hsl( var( --plp-hue, 250 ) 46% 16% ) );
+	color: rgba( 255, 255, 255, 0.85 );
+	text-shadow: 0 1px 2px rgba( 0, 0, 0, 0.3 );
 }
 
 .plp-hero__body {
@@ -315,6 +384,207 @@
 	opacity: 0.7;
 }
 
+/* ------------------------------------------------------------------
+ * Listening depth
+ * --------------------------------------------------------------- */
+
+.plp-depth {
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid rgba( 255, 255, 255, 0.12 );
+}
+
+.plp-depth[hidden] {
+	display: none;
+}
+
+.plp-depth__label {
+	display: block;
+	margin-bottom: 6px;
+	font-size: 0.85em;
+	opacity: 0.8;
+}
+
+.plp-depth__label:empty {
+	display: none;
+}
+
+.plp-depth__curve {
+	display: flex;
+	gap: 2px;
+	align-items: flex-end;
+	height: 34px;
+}
+
+.plp-depth__bar {
+	flex: 1 1 0;
+	min-height: 2px;
+	background: var( --plp-accent );
+	border-radius: 2px 2px 0 0;
+	opacity: 0.85;
+}
+
+.plp-depth__hint {
+	display: block;
+	margin-top: 5px;
+	opacity: 0.5;
+	font-size: 0.72em;
+}
+
+/* ------------------------------------------------------------------
+ * Public statistics block
+ * --------------------------------------------------------------- */
+
+.plp-stats__columns {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 280px, 1fr ) );
+	gap: var( --plp-gap );
+}
+
+.plp-stats__title {
+	margin: 0 0 10px;
+	font-size: 1.05em;
+}
+
+.plp-stats__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	counter-reset: plp-stat;
+}
+
+.plp-stats__row {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	padding: 7px 10px 7px 32px;
+	position: relative;
+	background: var( --plp-surface );
+	border-radius: 8px;
+	counter-increment: plp-stat;
+}
+
+.plp-stats__row + .plp-stats__row {
+	margin-top: 3px;
+}
+
+.plp-stats__row::before {
+	content: counter( plp-stat );
+	position: absolute;
+	top: 50%;
+	left: 10px;
+	opacity: 0.45;
+	font-size: 0.8em;
+	font-variant-numeric: tabular-nums;
+	transform: translateY( -50% );
+}
+
+.plp-stats__cover {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	overflow: hidden;
+	background:
+		radial-gradient( circle at 32% 24%, hsl( var( --plp-hue, 250 ) 55% 46% ), transparent 62% ),
+		linear-gradient( 140deg, hsl( var( --plp-hue, 250 ) 42% 32% ), hsl( var( --plp-hue, 250 ) 46% 16% ) );
+	border-radius: 6px;
+	color: rgba( 255, 255, 255, 0.85 );
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.plp-stats__cover img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.plp-stats__meta {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.plp-stats__name {
+	overflow: hidden;
+	color: inherit;
+	font-weight: 600;
+	text-decoration: none;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.plp-stats__name:hover {
+	color: var( --plp-accent );
+}
+
+.plp-stats__artist {
+	overflow: hidden;
+	opacity: 0.65;
+	font-size: 0.82em;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.plp-stats__value {
+	display: inline-flex;
+	flex: 0 0 auto;
+	gap: 5px;
+	align-items: center;
+	opacity: 0.75;
+	font-size: 0.85em;
+	font-variant-numeric: tabular-nums;
+}
+
+/* --- Public trend chart --- */
+
+.plp-trend {
+	margin: 0 0 var( --plp-gap );
+	padding: 14px 16px 10px;
+	background: var( --plp-surface );
+	border: 1px solid var( --plp-border );
+	border-radius: var( --plp-radius );
+}
+
+.plp-trend__title {
+	margin: 0 0 10px;
+	opacity: 0.75;
+	font-size: 0.85em;
+}
+
+.plp-trend__bars {
+	display: flex;
+	gap: 2px;
+	align-items: flex-end;
+	height: 90px;
+}
+
+.plp-trend__bar {
+	flex: 1 1 0;
+	min-height: 2px;
+	background: var( --plp-accent );
+	border-radius: 2px 2px 0 0;
+	opacity: 0.85;
+}
+
+.plp-trend__bar:hover {
+	opacity: 1;
+}
+
+.plp-trend__scale {
+	display: flex;
+	justify-content: space-between;
+	margin: 6px 0 0;
+	opacity: 0.55;
+	font-size: 0.75em;
+	font-variant-numeric: tabular-nums;
+}
+
 /* The hero layout's list is numbered and denser than the standalone list. */
 
 .plp--hero .plp-list--hero {
@@ -416,6 +686,31 @@
 .plp-nav__count {
 	opacity: 0.6;
 	font-size: 0.85em;
+}
+
+.plp-nav__item[hidden] {
+	display: none;
+}
+
+.plp-nav__more {
+	padding: 6px 14px;
+	background: none;
+	border: 1px dashed var( --plp-border );
+	border-radius: 999px;
+	color: inherit;
+	font: inherit;
+	font-size: 0.85em;
+	cursor: pointer;
+	opacity: 0.75;
+}
+
+.plp-nav__more:hover {
+	background: var( --plp-surface );
+	opacity: 1;
+}
+
+.plp-nav__more[hidden] {
+	display: none;
 }
 
 /* ------------------------------------------------------------------
@@ -545,7 +840,15 @@
 }
 
 .plp-track__cover-empty {
-	background: var( --plp-border );
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	font-weight: 500;
+}
+
+.plp-list--grid .plp-track__cover-empty {
+	font-size: 44px;
 }
 
 .plp-track__meta {
@@ -709,6 +1012,9 @@
 	left: 0;
 	z-index: 99990;
 	padding: 8px 12px;
+	/* Clears the home indicator on iPhones, where the bottom of the viewport is not
+	   the bottom of the usable screen. */
+	padding-bottom: max( 8px, env( safe-area-inset-bottom ) );
 	background: #14161a;
 	border-top: 1px solid rgba( 255, 255, 255, 0.12 );
 	color: #f2f4f7;
@@ -898,18 +1204,66 @@
 		grid-template-columns: 1fr;
 	}
 
+	/* Wrapping 13 chips onto seven rows ate 278px of a 813px screen. A single
+	   scrollable strip is both the smaller and the more familiar mobile pattern. */
+	.plp-nav {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+		padding-bottom: 4px;
+		scrollbar-width: none;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.plp-nav::-webkit-scrollbar {
+		display: none;
+	}
+
+	.plp-nav__item,
+	.plp-nav__more {
+		flex: 0 0 auto;
+		white-space: nowrap;
+	}
+
+	/* A 220px flex basis forced the sort control onto its own row, costing 40px for
+	   nothing — the two fit side by side once the search field stops demanding it. */
+	.plp-search {
+		flex: 1 1 100px;
+	}
+
+	.plp-sort__select {
+		max-width: 140px;
+	}
+
 	.plp-hero__inner {
 		flex-direction: column;
-		gap: 18px;
-		padding: 18px;
+		gap: 14px;
+		padding: 16px;
 		text-align: center;
 	}
 
+	/* The panel measured 575px tall on a phone — most of the screen for one track,
+	   so the list started below the fold. */
 	.plp-hero__cover {
 		width: 100%;
-		max-width: 260px;
+		max-width: 180px;
 		height: auto;
 		aspect-ratio: 1 / 1;
+	}
+
+	.plp-hero__cover-empty {
+		font-size: 46px;
+	}
+
+	.plp-hero__body {
+		gap: 7px;
+	}
+
+	.plp-hero__title {
+		font-size: 1.2em;
+	}
+
+	.plp-hero__controls {
+		margin-top: 2px;
 	}
 
 	.plp-hero__title,
@@ -944,6 +1298,45 @@
 	.plp-bar__progress {
 		flex: 1 1 100%;
 		order: 3;
+	}
+}
+
+/* Below this width the row runs out of room for everything at once. The like button
+   stays — it is the interactive one — and the play count moves to the panel only. */
+
+@media ( max-width: 480px ) {
+	.plp-track {
+		gap: 10px;
+		padding: 8px;
+	}
+
+	.plp-list--list .plp-plays,
+	.plp-list--hero .plp-plays {
+		display: none;
+	}
+
+	.plp-track__play {
+		width: 34px;
+		height: 34px;
+		font-size: 16px;
+	}
+
+	.plp-track__cover {
+		width: 38px;
+		height: 38px;
+	}
+
+	.plp--hero .plp-track {
+		padding-left: 32px;
+	}
+
+	.plp--hero .plp-track::after {
+		left: 8px;
+	}
+
+	.plp-nav__item,
+	.plp-nav__more {
+		font-size: 0.8em;
 	}
 }
 

@@ -384,6 +384,372 @@ class PLP_Stats {
 	}
 
 	/* ---------------------------------------------------------------------
+	 * Listening depth
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * How many slices a track is divided into for the retention curve.
+	 *
+	 * Twenty is enough shape to see where listeners drop off, and coarse enough that no
+	 * single slice can be tied back to one person's session.
+	 */
+	const BUCKETS = 20;
+
+	/**
+	 * Records how much of a track was actually heard.
+	 *
+	 * The browser reports this, because only the browser knows. A forged report can
+	 * inflate the totals, which is why the same per-minute limit applies as everywhere
+	 * else, and why these numbers are presented as listening patterns rather than as
+	 * anything to be paid out on.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param int   $seconds Seconds actually played.
+	 * @param int[] $buckets Slice indexes that were played.
+	 * @return array{seconds:int}
+	 */
+	public static function record_progress( $post_id, $seconds, array $buckets ) {
+		global $wpdb;
+
+		$post_id = absint( $post_id );
+		$seconds = max( 0, min( 6 * HOUR_IN_SECONDS, absint( $seconds ) ) );
+
+		$clean = array();
+		foreach ( $buckets as $bucket ) {
+			$bucket = absint( $bucket );
+
+			if ( $bucket < self::BUCKETS ) {
+				$clean[ $bucket ] = true;
+			}
+		}
+
+		if ( $seconds ) {
+			self::bump( $post_id, '_pl_seconds', $seconds );
+		}
+
+		if ( $clean ) {
+			$table  = plp_segments_table();
+			$values = array();
+
+			foreach ( array_keys( $clean ) as $bucket ) {
+				$values[] = $wpdb->prepare( '(%d,%d,1)', $post_id, $bucket );
+			}
+
+			// One statement for the whole set. ON DUPLICATE KEY makes the increment
+			// atomic, so simultaneous listeners cannot overwrite each other.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL
+			$wpdb->query(
+				"INSERT INTO {$table} ( track_id, bucket, plays ) VALUES "
+				. implode( ',', $values )
+				. ' ON DUPLICATE KEY UPDATE plays = plays + 1'
+			);
+		}
+
+		return array( 'seconds' => self::seconds( $post_id ) );
+	}
+
+	/**
+	 * Total seconds listened for a post.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int
+	 */
+	public static function seconds( $post_id ) {
+		return absint( get_post_meta( absint( $post_id ), '_pl_seconds', true ) );
+	}
+
+	/**
+	 * The retention curve of a post.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int[] One value per slice, always BUCKETS long.
+	 */
+	public static function curve( $post_id ) {
+		global $wpdb;
+
+		$table = plp_segments_table();
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT bucket, plays FROM {$table} WHERE track_id = %d",
+				absint( $post_id )
+			),
+			ARRAY_A
+		);
+
+		$curve = array_fill( 0, self::BUCKETS, 0 );
+
+		foreach ( (array) $rows as $row ) {
+			$bucket = absint( $row['bucket'] );
+
+			if ( $bucket < self::BUCKETS ) {
+				$curve[ $bucket ] = (int) $row['plays'];
+			}
+		}
+
+		return $curve;
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Reporting
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * The site's UTC offset in seconds.
+	 *
+	 * Events are stored in UTC, but a report has to break days where the listener's
+	 * midnight is, not where Greenwich's is.
+	 *
+	 * @return int
+	 */
+	private static function offset() {
+		return (int) round( (float) get_option( 'gmt_offset', 0 ) * HOUR_IN_SECONDS );
+	}
+
+	/**
+	 * Start of a period, as a UTC datetime string.
+	 *
+	 * @param int $days Number of days back. 0 means the start of today.
+	 * @return string
+	 */
+	private static function since( $days ) {
+		$offset         = self::offset();
+		$local_now      = time() + $offset;
+		$local_midnight = $local_now - ( $local_now % DAY_IN_SECONDS );
+
+		return gmdate( 'Y-m-d H:i:s', $local_midnight - ( absint( $days ) * DAY_IN_SECONDS ) - $offset );
+	}
+
+	/**
+	 * Headline numbers for the report screen.
+	 *
+	 * @return array
+	 */
+	public static function totals() {
+		global $wpdb;
+
+		$table = plp_events_table();
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery
+		$plays = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT SUM( CAST( meta_value AS UNSIGNED ) ) FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				'_pl_plays'
+			)
+		);
+
+		$likes = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT SUM( CAST( meta_value AS UNSIGNED ) ) FROM {$wpdb->postmeta} WHERE meta_key = %s",
+				'_pl_likes'
+			)
+		);
+
+		$today = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE event_type = %s AND created_at >= %s",
+				self::EVENT_PLAY,
+				self::since( 0 )
+			)
+		);
+
+		$week = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE event_type = %s AND created_at >= %s",
+				self::EVENT_PLAY,
+				self::since( 7 )
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery
+
+		$tracks = 0;
+		foreach ( PLP_Source::post_types() as $post_type ) {
+			$counts  = wp_count_posts( $post_type );
+			$tracks += isset( $counts->publish ) ? (int) $counts->publish : 0;
+		}
+
+		return array(
+			'plays'  => $plays,
+			'likes'  => $likes,
+			'today'  => $today,
+			'week'   => $week,
+			'tracks' => $tracks,
+		);
+	}
+
+	/**
+	 * Plays per day for the last N days, oldest first.
+	 *
+	 * Days with no plays are filled in with zero, otherwise the chart would silently
+	 * compress quiet stretches and read as busier than reality.
+	 *
+	 * @param int $days Days to cover.
+	 * @return array List of ['date' => 'Y-m-d', 'plays' => int].
+	 */
+	public static function daily_plays( $days = 30 ) {
+		global $wpdb;
+
+		$days   = max( 1, min( 365, absint( $days ) ) );
+		$table  = plp_events_table();
+		$offset = self::offset();
+
+		// Shifting inside SQL avoids depending on the server's timezone tables, which
+		// are often not loaded on shared hosting.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT DATE( created_at + INTERVAL %d SECOND ) AS day, COUNT(*) AS plays
+				FROM {$table}
+				WHERE event_type = %s AND created_at >= %s
+				GROUP BY day
+				ORDER BY day ASC",
+				$offset,
+				self::EVENT_PLAY,
+				self::since( $days )
+			),
+			ARRAY_A
+		);
+
+		$found = array();
+		foreach ( (array) $rows as $row ) {
+			$found[ $row['day'] ] = (int) $row['plays'];
+		}
+
+		$series    = array();
+		$local_now = time() + $offset;
+
+		for ( $i = $days - 1; $i >= 0; $i-- ) {
+			$date = gmdate( 'Y-m-d', $local_now - ( $i * DAY_IN_SECONDS ) );
+
+			$series[] = array(
+				'date'  => $date,
+				'plays' => isset( $found[ $date ] ) ? $found[ $date ] : 0,
+			);
+		}
+
+		return $series;
+	}
+
+	/**
+	 * Best performing tracks.
+	 *
+	 * All-time comes from the aggregate counters, which also include anything counted
+	 * before the event log existed. A bounded period has to come from the log.
+	 *
+	 * @param string $metric `plays` or `likes`.
+	 * @param int    $limit  How many rows.
+	 * @param int    $days   0 for all time.
+	 * @return array List of ['id' => int, 'value' => int].
+	 */
+	public static function top_tracks( $metric = 'plays', $limit = 20, $days = 0 ) {
+		global $wpdb;
+
+		$limit  = max( 1, min( 100, absint( $limit ) ) );
+		$metric = 'likes' === $metric ? 'likes' : 'plays';
+
+		if ( ! $days ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT post_id AS id, CAST( meta_value AS UNSIGNED ) AS value
+					FROM {$wpdb->postmeta}
+					WHERE meta_key = %s AND CAST( meta_value AS UNSIGNED ) > 0
+					ORDER BY value DESC
+					LIMIT %d",
+					'plays' === $metric ? '_pl_plays' : '_pl_likes',
+					$limit
+				),
+				ARRAY_A
+			);
+		} else {
+			$table = plp_events_table();
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT track_id AS id, COUNT(*) AS value
+					FROM {$table}
+					WHERE event_type = %s AND created_at >= %s
+					GROUP BY track_id
+					ORDER BY value DESC
+					LIMIT %d",
+					'plays' === $metric ? self::EVENT_PLAY : self::EVENT_LIKE,
+					self::since( $days ),
+					$limit
+				),
+				ARRAY_A
+			);
+		}
+
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[] = array(
+				'id'    => (int) $row['id'],
+				'value' => (int) $row['value'],
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Total plays per category.
+	 *
+	 * Sums the aggregate counters across each term's posts. A track in several
+	 * categories counts in each of them, which is the honest reading of "how much was
+	 * this category listened to".
+	 *
+	 * @param int $limit Maximum rows.
+	 * @return array List of ['name' => string, 'taxonomy' => string, 'plays' => int, 'tracks' => int].
+	 */
+	public static function category_plays( $limit = 20 ) {
+		global $wpdb;
+
+		$taxonomies = PLP_Source::all_taxonomies();
+
+		if ( ! $taxonomies ) {
+			return array();
+		}
+
+		$limit        = max( 1, min( 100, absint( $limit ) ) );
+		$placeholders = implode( ',', array_fill( 0, count( $taxonomies ), '%s' ) );
+		$args         = array_merge( array( '_pl_plays' ), $taxonomies, array( $limit ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT t.name AS name, tt.taxonomy AS taxonomy,
+					SUM( CAST( pm.meta_value AS UNSIGNED ) ) AS plays,
+					COUNT( DISTINCT tr.object_id ) AS tracks
+				FROM {$wpdb->term_relationships} tr
+				INNER JOIN {$wpdb->term_taxonomy} tt ON tt.term_taxonomy_id = tr.term_taxonomy_id
+				INNER JOIN {$wpdb->terms} t ON t.term_id = tt.term_id
+				INNER JOIN {$wpdb->postmeta} pm ON pm.post_id = tr.object_id AND pm.meta_key = %s
+				INNER JOIN {$wpdb->posts} p ON p.ID = tr.object_id AND p.post_status = 'publish'
+				WHERE tt.taxonomy IN ({$placeholders})
+				GROUP BY tt.term_taxonomy_id, t.name, tt.taxonomy
+				ORDER BY plays DESC, tracks DESC
+				LIMIT %d",
+				$args
+			),
+			ARRAY_A
+		);
+
+		$out = array();
+		foreach ( (array) $rows as $row ) {
+			$out[] = array(
+				'name'     => (string) $row['name'],
+				'taxonomy' => (string) $row['taxonomy'],
+				'plays'    => (int) $row['plays'],
+				'tracks'   => (int) $row['tracks'],
+			);
+		}
+
+		return $out;
+	}
+
+	/* ---------------------------------------------------------------------
 	 * Internals
 	 * ------------------------------------------------------------------ */
 

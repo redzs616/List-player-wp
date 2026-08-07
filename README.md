@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-0.5.0-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.0.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -79,9 +79,31 @@ illetve kód modulba:
 | `orderby` | `date` | `date`, `plays`, `likes`, `title`, `random`, `menu_order` |
 | `order` | `desc` | `asc` vagy `desc` |
 | `nav` | `yes` | Kategória-navigáció megjelenítése |
+| `nav_limit` | `12` | Ennyi kategória látszik, a többi „További N kategória" mögé kerül. `0` = mind |
+| `nav_taxonomy` | — | Csak egy taxonómia kategóriáit mutatja, pl. `pl_category` |
 | `search` | `yes` | Keresőmező megjelenítése |
 | `sort` | `yes` | Rendezés választó megjelenítése |
 | `accent` | — | Kiemelő szín hexa kóddal, pl. `#f0a12e` |
+
+### Nyilvános statisztika oldal
+
+Külön shortcode egy „Legnépszerűbb mixek" oldalhoz:
+
+```
+[playlist_stats limit="10" show="both" trend="yes" days="30"]
+```
+
+| Paraméter | Alapérték | Leírás |
+|---|---|---|
+| `limit` | `10` | Hány szám szerepeljen egy listában |
+| `show` | `both` | `plays`, `likes` vagy `both` |
+| `trend` | `yes` | Forgalmi grafikon megjelenítése |
+| `days` | `30` | A grafikon időszaka, 7–90 nap |
+| `accent` | — | Kiemelő szín |
+
+A blokk a szerveren renderelődik, tehát page cache mellett néhány óráig állhat
+elavult adaton. Egy statisztika oldalnál ez elfogadható csere azért, hogy minden
+látogatónak ne kelljen külön kérést indítani.
 
 ### Billentyűzet
 
@@ -149,6 +171,9 @@ Névtér: `plplayer/v1`
 | `GET` | `/counters?ids=1,2,3` | Számlálók és a látogató kedvelés-állapota |
 | `POST` | `/tracks/{id}/play` | Lejátszás rögzítése |
 | `POST` | `/tracks/{id}/like` | Kedvelés be- és kikapcsolása |
+| `POST` | `/tracks/{id}/progress` | Hallgatott másodpercek és a lehallgatott szeletek |
+| `GET` | `/tracks/{id}/stats` | Egy szám nyilvános adatai, hallgatási görbével |
+| `GET` | `/stats/public` | Nyilvános top listák és forgalmi trend |
 
 Az író végpontok szándékosan nem kérnek nonce-ot. Page cache mellett a HTML — és a
 benne kinyomtatott nonce — közös minden látogatónál és elavul, tehát pont azoknak

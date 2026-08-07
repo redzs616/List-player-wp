@@ -94,6 +94,8 @@ class PLP_Settings_Page {
 		$clean = array(
 			'post_types'               => $post_types,
 			'public_stats'             => empty( $input['public_stats'] ) ? 0 : 1,
+			'public_listening'         => empty( $input['public_listening'] ) ? 0 : 1,
+			'public_trend'             => empty( $input['public_trend'] ) ? 0 : 1,
 			'guest_likes'              => empty( $input['guest_likes'] ) ? 0 : 1,
 			'play_threshold_seconds'   => min( 120, max( 1, absint( isset( $input['play_threshold_seconds'] ) ? $input['play_threshold_seconds'] : 15 ) ) ),
 			'play_threshold_percent'   => min( 100, max( 1, absint( isset( $input['play_threshold_percent'] ) ? $input['play_threshold_percent'] : 30 ) ) ),
@@ -184,6 +186,32 @@ class PLP_Settings_Page {
 									<?php esc_html_e( 'A látogatók is látják a lejátszásszámot és a like-okat', 'pl-player' ); ?>
 								</label>
 								<p class="description"><?php esc_html_e( 'Kikapcsolva csak az adminban látszanak a számok, a lejátszó akkor is számol.', 'pl-player' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Hallgatási adatok', 'pl-player' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[public_listening]" value="1"
+										<?php checked( 1, (int) $settings['public_listening'] ); ?> />
+									<?php esc_html_e( 'Összes hallgatott idő és hallgatási görbe a látogatóknak is', 'pl-player' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'A lejátszó jelenti, mennyit hallgattak egy számból, és a szám 20 szeletéből melyik ment le. Ebből lesz a visszatartási görbe: hol esnek ki a hallgatók. Csak összesített adat, látogatóhoz nem köthető.', 'pl-player' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Forgalmi trend', 'pl-player' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[public_trend]" value="1"
+										<?php checked( 1, (int) $settings['public_trend'] ); ?> />
+									<?php esc_html_e( 'A napi lejátszás-grafikon a látogatóknak is látszik', 'pl-player' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'Ez megmutatja a látogatóknak, mennyi forgalma van az oldalnak. Ha ezt nem szeretnéd kitenni, kapcsold ki — a top listák ettől függetlenül működnek.', 'pl-player' ); ?>
+								</p>
 							</td>
 						</tr>
 						<tr>
@@ -335,9 +363,40 @@ class PLP_Settings_Page {
 							<?php endif; ?>
 
 							<p>
+								<?php
+								$has_update = ! empty( $release['version'] )
+									&& version_compare( $release['version'], PLP_VERSION, '>' );
+
+								if ( $has_update && current_user_can( 'update_plugins' ) ) {
+									// Core's own upgrade route, so the update runs through the
+									// normal WordPress machinery with its rollback and checks.
+									$plugin_file = plugin_basename( PLP_FILE );
+									$update_url  = wp_nonce_url(
+										self_admin_url( 'update.php?action=upgrade-plugin&plugin=' . rawurlencode( $plugin_file ) ),
+										'upgrade-plugin_' . $plugin_file
+									);
+
+									printf(
+										'<a class="button button-primary" href="%1$s">%2$s</a> ',
+										esc_url( $update_url ),
+										esc_html(
+											sprintf(
+												/* translators: %s: new version number. */
+												__( 'Frissítés most a %s verzióra', 'pl-player' ),
+												$release['version']
+											)
+										)
+									);
+								}
+								?>
+
 								<a class="button" href="<?php echo esc_url( $check_url ); ?>">
 									<?php esc_html_e( 'Keresés most', 'pl-player' ); ?>
 								</a>
+							</p>
+
+							<p class="description">
+								<?php esc_html_e( 'A WordPress 6 óránként magától ellenőriz. A „Keresés most" csak ellenőriz, nem telepít. Ha azt szeretnéd, hogy magától fel is tegye, a Bővítmények listán kapcsold be nála az automatikus frissítést.', 'pl-player' ); ?>
 							</p>
 						</td>
 					</tr>

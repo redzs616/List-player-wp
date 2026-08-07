@@ -480,6 +480,8 @@ class PLP_Source {
 			'audio'          => $url,
 			'cover'          => $thumbnail_id ? (string) wp_get_attachment_image_url( $thumbnail_id, 'medium' ) : '',
 			'cover_large'    => $thumbnail_id ? (string) wp_get_attachment_image_url( $thumbnail_id, 'large' ) : '',
+			'hue'            => self::cover_hue( $post->ID ),
+			'initial'        => self::cover_initial( get_the_title( $post ) ),
 			'categories'     => self::term_list( $post ),
 		);
 
@@ -495,6 +497,37 @@ class PLP_Source {
 		 * @param WP_Post $post Post object.
 		 */
 		return apply_filters( 'plp_track_data', $data, $post );
+	}
+
+	/**
+	 * A stable colour for a post that has no artwork.
+	 *
+	 * Derived from the ID so every coverless track still looks like its own thing
+	 * instead of all of them sharing one flat square.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return int Hue between 0 and 359.
+	 */
+	public static function cover_hue( $post_id ) {
+		return (int) ( ( absint( $post_id ) * 47 ) % 360 );
+	}
+
+	/**
+	 * The first character of a title, for the placeholder cover.
+	 *
+	 * @param string $title Track title.
+	 * @return string
+	 */
+	public static function cover_initial( $title ) {
+		$title = trim( wp_strip_all_tags( (string) $title ) );
+
+		if ( '' === $title ) {
+			return '';
+		}
+
+		return function_exists( 'mb_strtoupper' )
+			? mb_strtoupper( mb_substr( $title, 0, 1 ) )
+			: strtoupper( substr( $title, 0, 1 ) );
 	}
 
 	/**

@@ -1,0 +1,143 @@
+/**
+ * Statistics report screen.
+ *
+ * @package PL_Player
+ */
+
+.plp-report h2 {
+	margin: 28px 0 8px;
+}
+
+.plp-report__empty {
+	padding: 16px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	color: #646970;
+}
+
+/* --- Summary cards --- */
+
+.plp-cards {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) );
+	gap: 12px;
+	max-width: 1000px;
+	margin: 16px 0 8px;
+}
+
+.plp-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 14px 16px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+}
+
+.plp-card__label {
+	color: #646970;
+	font-size: 12px;
+}
+
+.plp-card__value {
+	font-size: 26px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.1;
+}
+
+/* --- Chart --- */
+
+.plp-report__periods {
+	margin: 8px 0 12px;
+}
+
+.plp-chart {
+	max-width: 1000px;
+	padding: 14px 16px 10px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+}
+
+.plp-chart svg {
+	display: block;
+	width: 100%;
+	height: 200px;
+}
+
+.plp-chart__axis {
+	stroke: #dcdcde;
+	stroke-width: 1;
+}
+
+.plp-chart__bar {
+	fill: #2271b1;
+}
+
+.plp-chart__bar:hover {
+	fill: #135e96;
+}
+
+.plp-chart__labels {
+	display: flex;
+	justify-content: space-between;
+	margin-top: 6px;
+	color: #646970;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.plp-chart__peak {
+	font-weight: 600;
+}
+
+/* --- Tables --- */
+
+.plp-report__columns {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 320px, 1fr ) );
+	gap: 20px;
+	max-width: 1000px;
+}
+
+.plp-report__block h3 {
+	margin: 20px 0 8px;
+}
+
+.plp-report__table {
+	max-width: 1000px;
+}
+
+.plp-report__rank {
+	width: 36px;
+	color: #a7aaad;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.plp-report__value {
+	width: 130px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	white-space: nowrap;
+}
+
+.plp-report__value span {
+	color: #646970;
+	font-size: 11px;
+}
+
+.plp-report__bar-cell {
+	width: 30%;
+}
+
+.plp-report__bar {
+	display: block;
+	height: 8px;
+	min-width: 2px;
+	background: #2271b1;
+	border-radius: 4px;
+}

@@ -12,13 +12,15 @@ defined( 'ABSPATH' ) || exit;
  */
 class PLP_Shortcode {
 
-	const TAG = 'playlist_player';
+	const TAG       = 'playlist_player';
+	const TAG_STATS = 'playlist_stats';
 
 	/**
-	 * Hooks the shortcode.
+	 * Hooks the shortcodes.
 	 */
 	public static function init() {
 		add_shortcode( self::TAG, array( __CLASS__, 'render' ) );
+		add_shortcode( self::TAG_STATS, array( __CLASS__, 'render_stats' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 	}
 
@@ -78,6 +80,7 @@ class PLP_Shortcode {
 					'error'       => __( 'Nem sikerült betölteni a számokat.', 'pl-player' ),
 					'loginNeeded' => __( 'A kedveléshez be kell jelentkezned.', 'pl-player' ),
 					'nowPlaying'  => __( 'Most játszik:', 'pl-player' ),
+					'popupBlocked' => __( 'A böngésző letiltotta a felugró ablakot. Engedélyezd az oldalnak, és próbáld újra.', 'pl-player' ),
 				),
 			)
 		);
@@ -96,5 +99,19 @@ class PLP_Shortcode {
 		wp_enqueue_script( 'plp-player' );
 
 		return PLP_Renderer::render( $atts );
+	}
+
+	/**
+	 * Renders the public statistics block.
+	 *
+	 * Only the stylesheet is needed — the lists and the trend chart are static markup.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public static function render_stats( $atts ) {
+		wp_enqueue_style( 'plp-player' );
+
+		return PLP_Renderer::render_stats( $atts );
 	}
 }

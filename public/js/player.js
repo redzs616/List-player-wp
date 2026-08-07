@@ -17,6 +17,7 @@
 	var currentList = null;
 	var shuffle = false;
 	var repeat = false;
+	var hasPlayed = false;
 	var counted = {};
 	var bar = null;
 	var els = {};
@@ -295,6 +296,7 @@
 		showBar();
 		paintBar( item );
 		paintHero( item, list );
+		loadDepth( item, list );
 		setMediaSession( item );
 
 		if ( autoplay ) {
@@ -416,7 +418,10 @@
 				toggle: q( '[data-plp-toggle]', root ),
 				like: q( '[data-plp-hero-like]', root ),
 				likes: q( '[data-plp-hero-likes]', root ),
-				plays: q( '[data-plp-hero-plays]', root )
+				plays: q( '[data-plp-hero-plays]', root ),
+				depth: q( '[data-plp-depth]', root ),
+				listened: q( '[data-plp-listened]', root ),
+				curve: q( '[data-plp-curve]', root )
 			} : null;
 		}
 
@@ -431,6 +436,7 @@
 		}
 
 		var cover = item.getAttribute( 'data-cover' ) || '';
+		var hue = item.getAttribute( 'data-hue' ) || '250';
 
 		hero.title.textContent = item.getAttribute( 'data-title' ) || '';
 		hero.artist.textContent = item.getAttribute( 'data-artist' ) || '';
@@ -442,9 +448,13 @@
 
 		if ( hero.coverEmpty ) {
 			hero.coverEmpty.hidden = !! cover;
+			hero.coverEmpty.style.setProperty( '--plp-hue', hue );
+			hero.coverEmpty.textContent = item.getAttribute( 'data-initial' ) || '';
 		}
 
 		if ( hero.backdrop ) {
+			// The hue always applies; a cover image just layers over it.
+			hero.backdrop.style.setProperty( '--plp-hue', hue );
 			hero.backdrop.style.backgroundImage = cover
 				? 'url("' + cover.replace( /"/g, '' ) + '")'
 				: '';
@@ -457,6 +467,64 @@
 		}
 
 		syncHeroStats( item, hero );
+	}
+
+	/**
+	 * Draws the retention curve: one bar per slice of the track.
+	 */
+	function renderCurve( host, curve ) {
+		host.textContent = '';
+
+		var max = 0;
+
+		curve.forEach( function ( value ) {
+			max = Math.max( max, value );
+		} );
+
+		curve.forEach( function ( value ) {
+			var bar = document.createElement( 'span' );
+			bar.className = 'plp-depth__bar';
+			bar.style.height = ( max ? Math.max( 4, Math.round( ( value / max ) * 100 ) ) : 2 ) + '%';
+			host.appendChild( bar );
+		} );
+	}
+
+	/**
+	 * Loads the listening figures for the panel's current track.
+	 */
+	function loadDepth( item, list ) {
+		var hero = heroOf( list );
+
+		if ( ! hero || ! hero.depth ) {
+			return;
+		}
+
+		var id = item.getAttribute( 'data-id' );
+
+		request( '/tracks/' + id + '/stats' ).then( function ( data ) {
+			// The visitor may have moved on while this was in flight.
+			if ( ! currentItem || currentItem.getAttribute( 'data-id' ) !== id ) {
+				return;
+			}
+
+			if ( ! data || ! data.curve ) {
+				hero.depth.hidden = true;
+
+				return;
+			}
+
+			if ( hero.listened ) {
+				hero.listened.textContent = data.seconds_human || '';
+			}
+
+			if ( hero.curve ) {
+				renderCurve( hero.curve, data.curve );
+			}
+
+			hero.depth.hidden = false;
+		} ).catch( function () {
+			hero.depth.hidden = true;
+		} );
 	}
 
 	/**
@@ -491,13 +559,117 @@
 	}
 
 	/* ------------------------------------------------------------------
+	 * Listening depth
+	 *
+	 * Two things get measured: how many seconds actually elapsed, and which of the
+	 * track's twenty slices were heard. Both are accumulated in the browser and sent in
+	 * one beacon when playback stops, rather than pinged continuously.
+	 * --------------------------------------------------------------- */
+
+	var BUCKETS = 20;
+	var progress = { id: null, seconds: 0, buckets: {}, lastTime: 0 };
+
+	function resetProgress( id ) {
+		progress = { id: id, seconds: 0, buckets: {}, lastTime: 0 };
+	}
+
+	function trackProgress() {
+		if ( ! currentItem ) {
+			return;
+		}
+
+		var id = currentItem.getAttribute( 'data-id' );
+
+		if ( progress.id !== id ) {
+			flushProgress();
+			resetProgress( id );
+		}
+
+		var now = audio.currentTime;
+		var delta = now - progress.lastTime;
+
+		// Only forward movement of roughly one tick counts. A jump means the visitor
+		// dragged the slider, and skipped audio was never heard.
+		if ( delta > 0 && delta < 2 ) {
+			progress.seconds += delta;
+		}
+
+		progress.lastTime = now;
+
+		var duration = audio.duration;
+
+		if ( isFinite( duration ) && duration > 0 ) {
+			var bucket = Math.min( BUCKETS - 1, Math.floor( ( now / duration ) * BUCKETS ) );
+			progress.buckets[ bucket ] = true;
+		}
+	}
+
+	function flushProgress() {
+		var id = progress.id;
+		var seconds = Math.round( progress.seconds );
+		var buckets = Object.keys( progress.buckets );
+
+		if ( ! id || ( seconds < 3 && ! buckets.length ) ) {
+			return;
+		}
+
+		var body = new URLSearchParams();
+		body.set( 'seconds', seconds );
+		body.set( 'buckets', buckets.join( ',' ) );
+
+		var url = endpoint( '/tracks/' + id + '/progress', null );
+
+		// sendBeacon survives the page being closed and never blocks it. It cannot set
+		// headers, which is fine — this route needs none.
+		var sent = false;
+
+		if ( navigator.sendBeacon ) {
+			try {
+				sent = navigator.sendBeacon( url, body );
+			} catch ( error ) {
+				sent = false;
+			}
+		}
+
+		if ( ! sent ) {
+			fetch( url, {
+				method: 'POST',
+				body: body,
+				credentials: 'same-origin',
+				keepalive: true
+			} ).catch( function () {} );
+		}
+
+		progress.seconds = 0;
+		progress.buckets = {};
+	}
+
+	/* ------------------------------------------------------------------
 	 * Sticky bar
 	 * --------------------------------------------------------------- */
 
 	function showBar() {
-		if ( bar ) {
-			bar.hidden = false;
+		if ( ! bar ) {
+			return;
 		}
+
+		bar.hidden = false;
+		reserveBarSpace();
+	}
+
+	/**
+	 * Keeps the page from ending underneath the bar.
+	 *
+	 * The bar is fixed to the bottom of the viewport, so without this the last track
+	 * and the "load more" button sit behind it — worst on phones, where the bar wraps
+	 * onto two rows and is twice as tall.
+	 */
+	function reserveBarSpace() {
+		if ( ! bar || bar.hidden ) {
+			return;
+		}
+
+		document.body.style.paddingBottom = bar.offsetHeight + 'px';
 	}
 
 	function paintBar( item ) {
@@ -590,7 +762,10 @@
 	 * --------------------------------------------------------------- */
 
 	function saveState() {
-		if ( ! currentItem ) {
+		// Only worth remembering once the visitor actually started something. The hero
+		// panel preselects a track so its controls have a target, and saving that would
+		// make the sticky bar pop open unprompted on the next page they visit.
+		if ( ! currentItem || ! hasPlayed ) {
 			return;
 		}
 
@@ -620,6 +795,12 @@
 		try {
 			state = JSON.parse( raw );
 		} catch ( error ) {
+			return;
+		}
+
+		// A position of zero means nothing was really listened to — most likely a stale
+		// entry from an older version. Restoring it would open the bar for no reason.
+		if ( ! state || ! ( state.time > 1 ) ) {
 			return;
 		}
 
@@ -660,6 +841,8 @@
 		item.setAttribute( 'data-artist', track.artist || '' );
 		item.setAttribute( 'data-album', track.album || '' );
 		item.setAttribute( 'data-cover', track.cover_large || track.cover || '' );
+		item.setAttribute( 'data-hue', track.hue || 250 );
+		item.setAttribute( 'data-initial', track.initial || '' );
 		item.setAttribute( 'data-duration', track.duration || 0 );
 
 		var play = document.createElement( 'button' );
@@ -681,6 +864,9 @@
 		} else {
 			var blank = document.createElement( 'span' );
 			blank.className = 'plp-track__cover-empty';
+			blank.setAttribute( 'aria-hidden', 'true' );
+			blank.style.setProperty( '--plp-hue', track.hue || 250 );
+			blank.textContent = track.initial || '';
 			cover.appendChild( blank );
 		}
 
@@ -900,6 +1086,29 @@
 				return;
 			}
 
+			var popout = event.target.closest( '.plp-popout' );
+
+			if ( popout ) {
+				event.preventDefault();
+				openPopout( popout );
+
+				return;
+			}
+
+			var moreNav = event.target.closest( '.plp-nav__more' );
+
+			if ( moreNav ) {
+				event.preventDefault();
+
+				qa( '.plp-nav__item--extra', list ).forEach( function ( button ) {
+					button.hidden = false;
+				} );
+
+				moreNav.hidden = true;
+
+				return;
+			}
+
 			var moreButton = event.target.closest( '.plp-more__button' );
 
 			if ( moreButton ) {
@@ -956,6 +1165,7 @@
 				first.classList.add( 'is-current' );
 				audio.src = first.getAttribute( 'data-audio' );
 				paintHero( first, list );
+				loadDepth( first, list );
 			}
 		}
 
@@ -1010,20 +1220,27 @@
 	}
 
 	function wireAudio() {
-		audio.addEventListener( 'play', function () { paintPlaying( true ); } );
+		audio.addEventListener( 'play', function () {
+			hasPlayed = true;
+			paintPlaying( true );
+		} );
 		audio.addEventListener( 'pause', function () {
 			paintPlaying( false );
 			saveState();
+			flushProgress();
 		} );
 
 		audio.addEventListener( 'timeupdate', function () {
 			paintProgress();
 			maybeCountPlay();
+			trackProgress();
 		} );
 
 		audio.addEventListener( 'loadedmetadata', paintProgress );
 
 		audio.addEventListener( 'ended', function () {
+			flushProgress();
+
 			if ( repeat ) {
 				audio.currentTime = 0;
 				audio.play().catch( function () {} );
@@ -1034,7 +1251,13 @@
 			step( 1 );
 		} );
 
-		window.addEventListener( 'pagehide', saveState );
+		window.addEventListener( 'pagehide', function () {
+			saveState();
+			flushProgress();
+		} );
+
+		// Rotating a phone changes how many rows the bar wraps onto.
+		window.addEventListener( 'resize', reserveBarSpace );
 	}
 
 	function wireKeyboard() {
@@ -1061,6 +1284,84 @@
 				audio.muted = ! audio.muted;
 			}
 		} );
+	}
+
+	/**
+	 * A small public surface, so the popup window can pick up where the page left off.
+	 */
+	window.PLPlayerAPI = {
+		play: function ( id, at ) {
+			var item = q( '.plp-track[data-id="' + String( id ).replace( /"/g, '' ) + '"]' );
+
+			if ( ! item ) {
+				return false;
+			}
+
+			select( item, item.closest( '.plp' ), true );
+
+			if ( at > 0 ) {
+				var seek = function () {
+					audio.removeEventListener( 'loadedmetadata', seek );
+
+					if ( at < audio.duration ) {
+						audio.currentTime = at;
+					}
+				};
+
+				if ( audio.readyState >= 1 ) {
+					seek();
+				} else {
+					audio.addEventListener( 'loadedmetadata', seek );
+				}
+			}
+
+			return true;
+		},
+
+		current: function () {
+			if ( ! currentItem ) {
+				return null;
+			}
+
+			return {
+				id: currentItem.getAttribute( 'data-id' ),
+				time: Math.floor( audio.currentTime )
+			};
+		},
+
+		pause: function () {
+			audio.pause();
+		}
+	};
+
+	function openPopout( button ) {
+		var url = button.getAttribute( 'data-plp-popup' );
+
+		if ( ! url ) {
+			return;
+		}
+
+		var state = window.PLPlayerAPI.current();
+
+		if ( state ) {
+			url += ( url.indexOf( '?' ) === -1 ? '?' : '&' ) +
+				'track=' + encodeURIComponent( state.id ) +
+				'&t=' + encodeURIComponent( state.time );
+		}
+
+		var popup = window.open( url, 'plp_popup', 'width=420,height=620,menubar=no,toolbar=no,location=no' );
+
+		if ( ! popup ) {
+			// Blocked. Leaving the page player running is better than silently doing
+			// nothing.
+			announce( button.closest( '.plp' ), PLPlayer.i18n.popupBlocked );
+
+			return;
+		}
+
+		// Two windows playing the same track over each other would be nonsense.
+		window.PLPlayerAPI.pause();
+		popup.focus();
 	}
 
 	function init() {

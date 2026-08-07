@@ -54,9 +54,13 @@ class PLP_Renderer {
 				'orderby'   => 'date',
 				'order'     => 'desc',
 				'nav'       => 'yes',
+				'nav_limit' => 12,
+				'nav_taxonomy' => '',
 				'search'    => 'yes',
 				'sort'      => 'yes',
 				'accent'    => '',
+				'theme'     => 'auto',
+				'popup'     => 'yes',
 			),
 			is_array( $atts ) ? $atts : array(),
 			'playlist_player'
@@ -80,9 +84,14 @@ class PLP_Renderer {
 			'orderby'    => sanitize_key( (string) $atts['orderby'] ),
 			'order'      => 'asc' === strtolower( (string) $atts['order'] ) ? 'asc' : 'desc',
 			'show_nav'   => self::is_yes( $atts['nav'] ),
+			// 0 means show every category at once.
+			'nav_limit'  => max( 0, absint( $atts['nav_limit'] ) ),
+			'nav_taxonomy' => sanitize_key( (string) $atts['nav_taxonomy'] ),
 			'show_search' => self::is_yes( $atts['search'] ),
 			'show_sort'  => self::is_yes( $atts['sort'] ),
 			'accent'     => sanitize_hex_color( (string) $atts['accent'] ),
+			'theme'      => in_array( $atts['theme'], array( 'auto', 'dark', 'light' ), true ) ? $atts['theme'] : 'auto',
+			'show_popup' => self::is_yes( $atts['popup'] ),
 		);
 	}
 
@@ -175,7 +184,8 @@ class PLP_Renderer {
 
 		ob_start();
 		?>
-		<div class="plp plp--<?php echo esc_attr( $config['layout'] ); ?>" data-plp="<?php echo esc_attr( (string) wp_json_encode( $client_config ) ); ?>" <?php echo $style; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
+		<div class="plp plp--<?php echo esc_attr( $config['layout'] ); ?> plp--theme-<?php echo esc_attr( $config['theme'] ); ?>"
+			data-plp="<?php echo esc_attr( (string) wp_json_encode( $client_config ) ); ?>" <?php echo $style; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 
 			<?php if ( 'hero' === $config['layout'] ) : ?>
 				<?php self::render_hero( $tracks, $show_stats ); ?>
@@ -207,6 +217,15 @@ class PLP_Renderer {
 								<option value="random"><?php esc_html_e( 'Véletlen', 'pl-player' ); ?></option>
 							</select>
 						</div>
+					<?php endif; ?>
+
+					<?php if ( $config['show_popup'] ) : ?>
+						<button type="button" class="plp-popout"
+							data-plp-popup="<?php echo esc_url( PLP_Popup::url( array( 'terms' => implode( ',', $config['terms'] ) ) ) ); ?>"
+							title="<?php esc_attr_e( 'Külön ablakban folytatja, így oldalváltásnál sem szakad meg', 'pl-player' ); ?>">
+							<span class="plp-icon plp-icon--popout" aria-hidden="true"></span>
+							<?php esc_html_e( 'Külön ablakban', 'pl-player' ); ?>
+						</button>
 					<?php endif; ?>
 				</div>
 			<?php endif; ?>
@@ -253,19 +272,26 @@ class PLP_Renderer {
 	private static function render_hero( array $tracks, $show_stats ) {
 		$first = $tracks ? $tracks[0] : null;
 		$cover = $first && $first['cover_large'] ? $first['cover_large'] : ( $first ? $first['cover'] : '' );
+		$hue   = $first ? (int) $first['hue'] : 250;
+
+		// The backdrop always carries the hue as a background colour; a cover image just
+		// layers on top of it. That way a track without artwork still tints the panel
+		// instead of leaving it flat.
+		$backdrop = '--plp-hue:' . $hue . ';';
+
+		if ( $cover ) {
+			$backdrop .= 'background-image:url(' . esc_url( $cover ) . ');';
+		}
 		?>
 		<div class="plp-hero" data-plp-hero>
-			<span class="plp-hero__backdrop" aria-hidden="true"
-				style="<?php echo $cover ? 'background-image:url(' . esc_url( $cover ) . ')' : ''; ?>"></span>
+			<span class="plp-hero__backdrop" aria-hidden="true" style="<?php echo esc_attr( $backdrop ); ?>"></span>
 
 			<div class="plp-hero__inner">
 				<div class="plp-hero__cover">
-					<?php if ( $cover ) : ?>
-						<img src="<?php echo esc_url( $cover ); ?>" alt="" decoding="async" />
-					<?php else : ?>
-						<img src="" alt="" decoding="async" hidden />
-						<span class="plp-hero__cover-empty" aria-hidden="true"></span>
-					<?php endif; ?>
+					<img src="<?php echo esc_url( $cover ); ?>" alt="" decoding="async" <?php echo $cover ? '' : 'hidden'; ?> />
+					<span class="plp-hero__cover-empty" aria-hidden="true"
+						style="--plp-hue:<?php echo esc_attr( (string) $hue ); ?>"
+						<?php echo $cover ? 'hidden' : ''; ?>><?php echo esc_html( $first ? $first['initial'] : '' ); ?></span>
 				</div>
 
 				<div class="plp-hero__body">
@@ -317,10 +343,197 @@ class PLP_Renderer {
 							<?php endif; ?>
 						</span>
 					</div>
+
+					<?php if ( ! empty( plp_get_settings()['public_listening'] ) ) : ?>
+						<div class="plp-depth" data-plp-depth hidden>
+							<span class="plp-depth__label" data-plp-listened></span>
+							<span class="plp-depth__curve" data-plp-curve aria-hidden="true"></span>
+							<span class="plp-depth__hint"><?php esc_html_e( 'Hallgatottság a szám hossza mentén', 'pl-player' ); ?></span>
+						</div>
+					<?php endif; ?>
 				</div>
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Renders the [playlist_stats] block: public top lists and the traffic trend.
+	 *
+	 * Rendered on the server rather than fetched: a statistics page a few hours stale is
+	 * no worse for being cached, and it saves every visitor a round trip.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public static function render_stats( $atts ) {
+		$atts = shortcode_atts(
+			array(
+				'limit'  => 10,
+				'show'   => 'both',
+				'trend'  => 'yes',
+				'days'   => 30,
+				'accent' => '',
+			),
+			is_array( $atts ) ? $atts : array(),
+			'playlist_stats'
+		);
+
+		$settings = plp_get_settings();
+
+		if ( empty( $settings['public_stats'] ) ) {
+			return '';
+		}
+
+		$limit  = max( 1, min( 50, absint( $atts['limit'] ) ) );
+		$show   = in_array( $atts['show'], array( 'plays', 'likes', 'both' ), true ) ? $atts['show'] : 'both';
+		$days   = max( 7, min( 90, absint( $atts['days'] ) ) );
+		$accent = sanitize_hex_color( (string) $atts['accent'] );
+		$style  = $accent ? 'style="--plp-accent:' . esc_attr( $accent ) . '"' : '';
+
+		ob_start();
+		?>
+		<div class="plp plp-stats" <?php echo $style; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
+
+			<?php if ( self::is_yes( $atts['trend'] ) && ! empty( $settings['public_trend'] ) ) : ?>
+				<?php self::render_trend( PLP_Stats::daily_plays( $days ), $days ); ?>
+			<?php endif; ?>
+
+			<div class="plp-stats__columns">
+				<?php
+				if ( 'likes' !== $show ) {
+					self::render_stats_list(
+						__( 'Legtöbbet hallgatott', 'pl-player' ),
+						PLP_Stats::top_tracks( 'plays', $limit, 0 ),
+						'plays'
+					);
+				}
+
+				if ( 'plays' !== $show ) {
+					self::render_stats_list(
+						__( 'Legkedveltebb', 'pl-player' ),
+						PLP_Stats::top_tracks( 'likes', $limit, 0 ),
+						'likes'
+					);
+				}
+				?>
+			</div>
+		</div>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Renders the public traffic trend as a bar chart.
+	 *
+	 * @param array $series Daily series.
+	 * @param int   $days   Days covered.
+	 */
+	private static function render_trend( array $series, $days ) {
+		$max = 0;
+		foreach ( $series as $point ) {
+			$max = max( $max, (int) $point['plays'] );
+		}
+
+		if ( ! $max ) {
+			return;
+		}
+		?>
+		<div class="plp-trend">
+			<p class="plp-trend__title">
+				<?php
+				printf(
+					/* translators: %d: number of days. */
+					esc_html__( 'Lejátszások az elmúlt %d napban', 'pl-player' ),
+					(int) $days
+				);
+				?>
+			</p>
+
+			<div class="plp-trend__bars">
+				<?php
+				foreach ( $series as $point ) {
+					$value = (int) $point['plays'];
+					$share = $value ? max( 3, (int) round( ( $value / $max ) * 100 ) ) : 0;
+
+					printf(
+						'<span class="plp-trend__bar" style="height:%1$d%%" title="%2$s"></span>',
+						(int) $share,
+						esc_attr(
+							sprintf(
+								/* translators: 1: date, 2: play count. */
+								__( '%1$s — %2$s lejátszás', 'pl-player' ),
+								$point['date'],
+								number_format_i18n( $value )
+							)
+						)
+					);
+				}
+				?>
+			</div>
+
+			<p class="plp-trend__scale">
+				<span><?php echo esc_html( $series[0]['date'] ); ?></span>
+				<span><?php echo esc_html( $series[ count( $series ) - 1 ]['date'] ); ?></span>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders one public top list.
+	 *
+	 * @param string $title  Heading.
+	 * @param array  $rows   Rows from PLP_Stats::top_tracks().
+	 * @param string $metric `plays` or `likes`.
+	 */
+	private static function render_stats_list( $title, array $rows, $metric ) {
+		echo '<div class="plp-stats__block">';
+		printf( '<h3 class="plp-stats__title">%s</h3>', esc_html( $title ) );
+
+		if ( ! $rows ) {
+			printf( '<p class="plp-empty">%s</p>', esc_html__( 'Még nincs adat.', 'pl-player' ) );
+			echo '</div>';
+			return;
+		}
+
+		echo '<ol class="plp-stats__list">';
+
+		foreach ( $rows as $row ) {
+			$track = PLP_Source::track_data( $row['id'] );
+
+			if ( ! $track ) {
+				continue;
+			}
+			?>
+			<li class="plp-stats__row">
+				<span class="plp-stats__cover" style="--plp-hue:<?php echo esc_attr( (string) $track['hue'] ); ?>">
+					<?php if ( $track['cover'] ) : ?>
+						<img src="<?php echo esc_url( $track['cover'] ); ?>" alt="" loading="lazy" decoding="async" />
+					<?php else : ?>
+						<span aria-hidden="true"><?php echo esc_html( $track['initial'] ); ?></span>
+					<?php endif; ?>
+				</span>
+
+				<span class="plp-stats__meta">
+					<a class="plp-stats__name" href="<?php echo esc_url( $track['permalink'] ); ?>">
+						<?php echo esc_html( $track['title'] ); ?>
+					</a>
+					<?php if ( $track['artist'] ) : ?>
+						<span class="plp-stats__artist"><?php echo esc_html( $track['artist'] ); ?></span>
+					<?php endif; ?>
+				</span>
+
+				<span class="plp-stats__value">
+					<span class="plp-icon plp-icon--<?php echo 'likes' === $metric ? 'heart' : 'headphones'; ?>" aria-hidden="true"></span>
+					<?php echo esc_html( number_format_i18n( (int) $row['value'] ) ); ?>
+				</span>
+			</li>
+			<?php
+		}
+
+		echo '</ol></div>';
 	}
 
 	/**
@@ -342,6 +555,8 @@ class PLP_Renderer {
 			data-artist="<?php echo esc_attr( $track['artist'] ); ?>"
 			data-album="<?php echo esc_attr( $track['album'] ); ?>"
 			data-cover="<?php echo esc_url( $track['cover_large'] ? $track['cover_large'] : $track['cover'] ); ?>"
+			data-hue="<?php echo esc_attr( (string) $track['hue'] ); ?>"
+			data-initial="<?php echo esc_attr( $track['initial'] ); ?>"
 			data-duration="<?php echo esc_attr( (string) $track['duration'] ); ?>">
 
 			<button type="button" class="plp-track__play" aria-label="<?php
@@ -355,7 +570,8 @@ class PLP_Renderer {
 				<?php if ( $track['cover'] ) : ?>
 					<img src="<?php echo esc_url( $track['cover'] ); ?>" alt="" loading="lazy" decoding="async" />
 				<?php else : ?>
-					<span class="plp-track__cover-empty" aria-hidden="true"></span>
+					<span class="plp-track__cover-empty" aria-hidden="true"
+						style="--plp-hue:<?php echo esc_attr( (string) $track['hue'] ); ?>"><?php echo esc_html( $track['initial'] ); ?></span>
 				<?php endif; ?>
 			</span>
 
@@ -394,9 +610,17 @@ class PLP_Renderer {
 	 * @param array $config Player configuration.
 	 */
 	private static function render_nav( array $config ) {
-		$groups = array();
+		$taxonomies = PLP_Source::all_taxonomies();
 
-		foreach ( PLP_Source::all_taxonomies() as $taxonomy ) {
+		// A single named taxonomy keeps the navigation readable on sites where several
+		// content types — each with its own categories — feed the same player.
+		if ( $config['nav_taxonomy'] && in_array( $config['nav_taxonomy'], $taxonomies, true ) ) {
+			$taxonomies = array( $config['nav_taxonomy'] );
+		}
+
+		$items = array();
+
+		foreach ( $taxonomies as $taxonomy ) {
 			$terms = get_terms(
 				array(
 					'taxonomy'   => $taxonomy,
@@ -408,57 +632,91 @@ class PLP_Renderer {
 				continue;
 			}
 
-			$groups[ $taxonomy ] = $terms;
+			$by_parent = array();
+
+			foreach ( $terms as $term ) {
+				$by_parent[ (int) $term->parent ][] = $term;
+			}
+
+			self::flatten_terms( $by_parent, 0, 0, $items );
 		}
 
-		if ( ! $groups ) {
+		if ( ! $items ) {
 			return;
 		}
+
+		$limit = $config['nav_limit'];
+		$shown = 0;
+		$extra = 0;
 		?>
 		<nav class="plp-nav" aria-label="<?php esc_attr_e( 'Kategóriák', 'pl-player' ); ?>">
 			<button type="button" class="plp-nav__item is-active" data-term="0">
 				<?php esc_html_e( 'Összes', 'pl-player' ); ?>
 			</button>
-			<?php
-			foreach ( $groups as $terms ) {
-				$by_parent = array();
 
-				foreach ( $terms as $term ) {
-					$by_parent[ (int) $term->parent ][] = $term;
+			<?php
+			foreach ( $items as $item ) {
+				$term      = $item['term'];
+				$is_active = in_array( (int) $term->term_id, $config['terms'], true );
+
+				// An active category is always visible, however far down the list it
+				// sits — hiding the current filter behind a "show more" would be absurd.
+				$is_extra = $limit && $shown >= $limit && ! $is_active;
+
+				if ( $is_extra ) {
+					$extra++;
+				} else {
+					$shown++;
 				}
 
-				self::render_nav_level( $by_parent, 0, $config['terms'] );
+				printf(
+					'<button type="button" class="plp-nav__item%1$s%2$s%3$s" data-term="%4$d"%5$s>%6$s <span class="plp-nav__count">%7$s</span></button>',
+					$item['depth'] ? ' plp-nav__item--child' : '',
+					$is_active ? ' is-active' : '',
+					$is_extra ? ' plp-nav__item--extra' : '',
+					(int) $term->term_id,
+					$is_extra ? ' hidden' : '',
+					esc_html( $term->name ),
+					esc_html( number_format_i18n( (int) $term->count ) )
+				);
 			}
 			?>
+
+			<?php if ( $extra ) : ?>
+				<button type="button" class="plp-nav__more">
+					<?php
+					printf(
+						/* translators: %s: number of hidden categories. */
+						esc_html__( 'További %s kategória', 'pl-player' ),
+						esc_html( number_format_i18n( $extra ) )
+					);
+					?>
+				</button>
+			<?php endif; ?>
 		</nav>
 		<?php
 	}
 
 	/**
-	 * Prints one level of the category navigation.
+	 * Flattens a term tree into an ordered list, keeping children after their parent.
 	 *
 	 * @param array $by_parent Terms grouped by parent.
 	 * @param int   $parent    Parent term ID.
-	 * @param array $active    Currently selected term IDs.
+	 * @param int   $depth     Current depth.
+	 * @param array $items     Accumulator, by reference.
 	 */
-	private static function render_nav_level( array $by_parent, $parent, array $active ) {
+	private static function flatten_terms( array $by_parent, $parent, $depth, array &$items ) {
 		if ( empty( $by_parent[ $parent ] ) ) {
 			return;
 		}
 
 		foreach ( $by_parent[ $parent ] as $term ) {
-			$depth = $parent ? ' plp-nav__item--child' : '';
-
-			printf(
-				'<button type="button" class="plp-nav__item%1$s%2$s" data-term="%3$d">%4$s <span class="plp-nav__count">%5$s</span></button>',
-				esc_attr( $depth ),
-				in_array( (int) $term->term_id, $active, true ) ? ' is-active' : '',
-				(int) $term->term_id,
-				esc_html( $term->name ),
-				esc_html( number_format_i18n( (int) $term->count ) )
+			$items[] = array(
+				'term'  => $term,
+				'depth' => $depth,
 			);
 
-			self::render_nav_level( $by_parent, (int) $term->term_id, $active );
+			self::flatten_terms( $by_parent, (int) $term->term_id, $depth + 1, $items );
 		}
 	}
 

@@ -67,6 +67,12 @@ function plp_get_settings() {
 		// be added here without moving anything — see PLP_Source.
 		'post_types'               => array( PLP_Post_Types::TRACK ),
 		'public_stats'             => 1,
+		// Total listening time and the retention curve. Needs the browser to report
+		// progress, so it is a separate switch from the plain counters.
+		'public_listening'         => 1,
+		// Public traffic trend. Off-limits for some sites, since it reveals how busy
+		// the site actually is.
+		'public_trend'             => 1,
 		'guest_likes'              => 1,
 		'play_threshold_seconds'   => 15,
 		'play_threshold_percent'   => 30,
@@ -100,4 +106,51 @@ function plp_events_table() {
 function plp_likes_table() {
 	global $wpdb;
 	return $wpdb->prefix . 'pl_likes';
+}
+
+/**
+ * Listening depth table name.
+ *
+ * @return string
+ */
+function plp_segments_table() {
+	global $wpdb;
+	return $wpdb->prefix . 'pl_segments';
+}
+
+/**
+ * Formats a duration as a rounded, human phrase: "14 óra 20 perc".
+ *
+ * Used for public totals, where the exact second is noise.
+ *
+ * @param int $seconds Total seconds.
+ * @return string
+ */
+function plp_format_listening_time( $seconds ) {
+	$seconds = absint( $seconds );
+
+	if ( $seconds < 60 ) {
+		/* translators: %s: number of seconds. */
+		return sprintf( _n( '%s másodperc', '%s másodperc', $seconds, 'pl-player' ), number_format_i18n( $seconds ) );
+	}
+
+	$hours   = (int) floor( $seconds / 3600 );
+	$minutes = (int) floor( ( $seconds % 3600 ) / 60 );
+
+	if ( ! $hours ) {
+		/* translators: %s: number of minutes. */
+		return sprintf( _n( '%s perc', '%s perc', $minutes, 'pl-player' ), number_format_i18n( $minutes ) );
+	}
+
+	if ( ! $minutes ) {
+		/* translators: %s: number of hours. */
+		return sprintf( _n( '%s óra', '%s óra', $hours, 'pl-player' ), number_format_i18n( $hours ) );
+	}
+
+	return sprintf(
+		/* translators: 1: hours, 2: minutes. */
+		__( '%1$s óra %2$s perc', 'pl-player' ),
+		number_format_i18n( $hours ),
+		number_format_i18n( $minutes )
+	);
 }
