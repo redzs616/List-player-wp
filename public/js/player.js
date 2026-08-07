@@ -678,6 +678,25 @@
 		return currentList ? q( '[data-plp-eq]', currentList ) : null;
 	}
 
+	/**
+	 * Whether motion is allowed here.
+	 *
+	 * The reduced-motion preference is honoured by default. It is worth knowing how
+	 * often this fires: on Windows, turning off "animation effects" sets it, so a
+	 * visitor can have it on without ever having thought about accessibility. That is
+	 * why `equalizer="always"` exists — the owner can decide the equalizer is the
+	 * point of the panel rather than decoration.
+	 */
+	function eqAllowed() {
+		if ( ! reducedMotion ) {
+			return true;
+		}
+
+		var canvas = eqCanvas();
+
+		return !! ( canvas && '1' === canvas.getAttribute( 'data-plp-eq-force' ) );
+	}
+
 	function ensureAnalyser() {
 		if ( viz.analyser || viz.failed ) {
 			return ! viz.failed;
@@ -797,7 +816,7 @@
 	 * CORS problem and is not one. Called from the click handlers, before play().
 	 */
 	function prepareEq() {
-		if ( reducedMotion || viz.failed || viz.analyser || ! eqCanvas() ) {
+		if ( viz.failed || viz.analyser || ! eqCanvas() || ! eqAllowed() ) {
 			return;
 		}
 
@@ -809,7 +828,7 @@
 	}
 
 	function startEq() {
-		if ( reducedMotion || ! eqCanvas() || viz.failed ) {
+		if ( ! eqCanvas() || viz.failed || ! eqAllowed() ) {
 			return;
 		}
 

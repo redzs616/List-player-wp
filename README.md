@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.1.1-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.1.2-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -72,7 +72,7 @@ illetve kód modulba:
 |---|---|---|
 | `layout` | `list` | `hero` (kiemelt panel + sorszámozott lista), `list` (tömör lista), `grid` (kártyás rács) |
 | `playlist` | — | Egy saját lejátszási lista azonosítója vagy slugja. A lista sorrendje érvényesül, a kategória és a rendezés nem számít. |
-| `equalizer` | `yes` | Élő ekvalizér a kiemelt panel hátterében, a tényleges hangból |
+| `equalizer` | `yes` | Élő ekvalizér a kiemelt panel hátterében, a tényleges hangból. `yes` — csökkentett mozgást kérő látogatónál nem indul. `always` — akkor is indul. `no` — soha. |
 | `theme` | `auto` | `auto`, `dark` vagy `light` |
 | `popup` | `yes` | A „Külön ablakban" gomb |
 | `category` | — | Kategória azonosító vagy slug, vesszővel több is |

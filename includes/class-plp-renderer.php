@@ -95,7 +95,12 @@ class PLP_Renderer {
 			'theme'      => in_array( $atts['theme'], array( 'auto', 'dark', 'light' ), true ) ? $atts['theme'] : 'auto',
 			'show_popup' => self::is_yes( $atts['popup'] ),
 			'playlist'   => PLP_Playlist::resolve( $atts['playlist'] ),
-			'equalizer'  => self::is_yes( $atts['equalizer'] ),
+			// `always` overrides the visitor's reduced-motion preference. Worth having
+			// as an explicit opt-in: an equalizer is the feature itself, not decorative
+			// chrome, so some owners will want it regardless.
+			'equalizer'  => 'always' === strtolower( (string) $atts['equalizer'] )
+				? 'always'
+				: ( self::is_yes( $atts['equalizer'] ) ? 'yes' : 'no' ),
 		);
 	}
 
@@ -281,7 +286,7 @@ class PLP_Renderer {
 	 * @param array $tracks     Tracks on the first page.
 	 * @param bool  $show_stats Whether the numbers are public.
 	 */
-	private static function render_hero( array $tracks, $show_stats, $equalizer = true ) {
+	private static function render_hero( array $tracks, $show_stats, $equalizer = 'yes' ) {
 		$first = $tracks ? $tracks[0] : null;
 		$cover = $first && $first['cover_large'] ? $first['cover_large'] : ( $first ? $first['cover'] : '' );
 		$hue   = $first ? (int) $first['hue'] : 250;
@@ -298,10 +303,11 @@ class PLP_Renderer {
 		<div class="plp-hero" data-plp-hero>
 			<span class="plp-hero__backdrop" aria-hidden="true" style="<?php echo esc_attr( $backdrop ); ?>"></span>
 
-			<?php if ( $equalizer ) : ?>
+			<?php if ( 'no' !== $equalizer ) : ?>
 				<?php // Driven by the actual audio through the Web Audio API. Hidden until
 					// there is real signal to draw, so a silent canvas never sits there. ?>
-				<canvas class="plp-hero__eq" data-plp-eq aria-hidden="true" hidden></canvas>
+				<canvas class="plp-hero__eq" data-plp-eq aria-hidden="true" hidden
+					data-plp-eq-force="<?php echo 'always' === $equalizer ? '1' : '0'; ?>"></canvas>
 			<?php endif; ?>
 
 			<div class="plp-hero__inner">
