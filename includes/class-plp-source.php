@@ -503,6 +503,9 @@ class PLP_Source {
 			'cover_large'    => $thumbnail_id ? (string) wp_get_attachment_image_url( $thumbnail_id, 'large' ) : '',
 			'hue'            => self::cover_hue( $post->ID ),
 			'initial'        => self::cover_initial( get_the_title( $post ) ),
+			// Measured, not guessed — see PLP_Analysis.
+			'labels'         => PLP_Analysis::labels( $post->ID ),
+			'description'    => wp_trim_words( wp_strip_all_tags( (string) $post->post_content ), 42, '…' ),
 			'categories'     => self::term_list( $post ),
 		);
 

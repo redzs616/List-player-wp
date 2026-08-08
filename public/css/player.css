@@ -300,6 +300,38 @@
 	display: none;
 }
 
+.plp-hero__labels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0;
+}
+
+.plp-hero__labels[hidden] {
+	display: none;
+}
+
+.plp-tag {
+	padding: 3px 10px;
+	background: rgba( 255, 255, 255, 0.12 );
+	border-radius: 999px;
+	font-size: 0.74em;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: 0.02em;
+}
+
+.plp-hero__about {
+	margin: 0;
+	max-width: 62ch;
+	opacity: 0.72;
+	font-size: 0.85em;
+	line-height: 1.5;
+}
+
+.plp-hero__about[hidden] {
+	display: none;
+}
+
 .plp-hero__progress {
 	display: flex;
 	gap: 10px;

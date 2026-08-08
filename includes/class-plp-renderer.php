@@ -327,6 +327,20 @@ class PLP_Renderer {
 
 					<p class="plp-hero__artist"><?php echo esc_html( $first ? $first['artist'] : '' ); ?></p>
 
+					<p class="plp-hero__labels" data-plp-labels <?php echo ( $first && $first['labels'] ) ? '' : 'hidden'; ?>>
+						<?php
+						if ( $first ) {
+							foreach ( $first['labels'] as $label ) {
+								printf( '<span class="plp-tag">%s</span>', esc_html( $label ) );
+							}
+						}
+						?>
+					</p>
+
+					<p class="plp-hero__about" data-plp-about <?php echo ( $first && '' !== $first['description'] ) ? '' : 'hidden'; ?>>
+						<?php echo esc_html( $first ? $first['description'] : '' ); ?>
+					</p>
+
 					<div class="plp-hero__progress">
 						<span class="plp-hero__time" data-plp-current>0:00</span>
 						<input type="range" class="plp-hero__seek" data-plp-seek min="0" max="1000" value="0" step="1"
@@ -581,6 +595,8 @@ class PLP_Renderer {
 			data-cover="<?php echo esc_url( $track['cover_large'] ? $track['cover_large'] : $track['cover'] ); ?>"
 			data-hue="<?php echo esc_attr( (string) $track['hue'] ); ?>"
 			data-initial="<?php echo esc_attr( $track['initial'] ); ?>"
+			data-labels="<?php echo esc_attr( implode( '|', $track['labels'] ) ); ?>"
+			data-about="<?php echo esc_attr( $track['description'] ); ?>"
 			data-duration="<?php echo esc_attr( (string) $track['duration'] ); ?>">
 
 			<button type="button" class="plp-track__play" aria-label="<?php

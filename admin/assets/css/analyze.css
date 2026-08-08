@@ -1,0 +1,101 @@
+/**
+ * Analysis screen.
+ *
+ * @package PL_Player
+ */
+
+.plp-analyze__intro {
+	max-width: 820px;
+}
+
+.plp-analyze .plp-panel {
+	max-width: 820px;
+	margin: 18px 0;
+	padding: 14px 18px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+}
+
+.plp-analyze .plp-panel p {
+	margin: 8px 0;
+}
+
+.plp-analyze__actions {
+	margin: 18px 0 12px;
+}
+
+.plp-analyze__spinner {
+	float: none;
+	margin: 0 0 0 8px;
+	vertical-align: middle;
+	visibility: hidden;
+}
+
+.plp-analyze__spinner.is-active {
+	visibility: visible;
+}
+
+.plp-notice[hidden] {
+	display: none;
+}
+
+.plp-progress[hidden] {
+	display: none;
+}
+
+.plp-progress__bar {
+	max-width: 820px;
+	height: 8px;
+	overflow: hidden;
+	background: #dcdcde;
+	border-radius: 4px;
+}
+
+.plp-progress__bar span {
+	display: block;
+	width: 0;
+	height: 100%;
+	background: #2271b1;
+	transition: width 150ms linear;
+}
+
+.plp-progress__label {
+	margin: 6px 0 0;
+	color: #50575e;
+	font-variant-numeric: tabular-nums;
+}
+
+.plp-analyze-table {
+	max-width: 820px;
+	margin-top: 16px;
+}
+
+.plp-analyze-table[hidden] {
+	display: none;
+}
+
+.plp-analyze-table .plp-num {
+	width: 90px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.plp-analyze-table img {
+	display: block;
+	border-radius: 3px;
+}
+
+.plp-ok {
+	color: #007017;
+	font-weight: 600;
+}
+
+.plp-bad {
+	color: #b32d2e;
+}
+
+.plp-analyze__note {
+	margin-top: 26px;
+	background: #f6f7f7;
+}

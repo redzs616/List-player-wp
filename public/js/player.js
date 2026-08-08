@@ -423,6 +423,8 @@
 				like: q( '[data-plp-hero-like]', root ),
 				likes: q( '[data-plp-hero-likes]', root ),
 				plays: q( '[data-plp-hero-plays]', root ),
+				labels: q( '[data-plp-labels]', root ),
+				about: q( '[data-plp-about]', root ),
 				depth: q( '[data-plp-depth]', root ),
 				listened: q( '[data-plp-listened]', root ),
 				curve: q( '[data-plp-curve]', root )
@@ -468,6 +470,28 @@
 			hero.total.textContent = formatTime(
 				parseFloat( item.getAttribute( 'data-duration' ) ) || 0
 			);
+		}
+
+		if ( hero.labels ) {
+			var tags = ( item.getAttribute( 'data-labels' ) || '' ).split( '|' ).filter( Boolean );
+
+			hero.labels.textContent = '';
+
+			tags.forEach( function ( text ) {
+				var tag = document.createElement( 'span' );
+				tag.className = 'plp-tag';
+				tag.textContent = text;
+				hero.labels.appendChild( tag );
+			} );
+
+			hero.labels.hidden = ! tags.length;
+		}
+
+		if ( hero.about ) {
+			var about = item.getAttribute( 'data-about' ) || '';
+
+			hero.about.textContent = about;
+			hero.about.hidden = '' === about;
 		}
 
 		syncHeroStats( item, hero );

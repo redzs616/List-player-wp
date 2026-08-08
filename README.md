@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.2.1-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.3.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -131,6 +131,52 @@ számít. Ha egy szám közben törlődik vagy elveszti a hangfájlját, pirossa
 a listában — nem csendben tűnik el, hogy lásd, hol van lyuk.
 
 A Divi modulban legördülőből választható, a benne lévő számok darabszámával.
+
+## Elemzés és generált borítók
+
+**Lejátszó → Elemzés.** A böngésző végigmegy a számokon, és **magából a hangból**
+megmér három dolgot. Számonként 10–15 másodperc, folyamatjelzővel.
+
+| Mit mér | Hogyan |
+|---|---|
+| **BPM** | A basszussáv energiaburkolójának autokorrelációja. Elektronikus zenén megbízható. |
+| **Energia** | A spektrum átlagos amplitúdója — mennyire nyomós a felvétel |
+| **Fényesség** | Spektrális súlypont — tompa vagy csillogó |
+
+Ezekből lesznek a címkék a lejátszóban: *„138 BPM · kemény · sötét"*. A `_pl_bpm`,
+`_pl_energy` és `_pl_bright` mezőkben tárolódnak.
+
+A mérés úgy zajlik, hogy a lejátszó a felvétel közepére ugrik (40%-nál, de legfeljebb
+két percnél), **kétszeres sebességgel, hangtalanul** lejátszik egy szakaszt, és
+mintavételezi a spektrumot. A hangtalanság egy nulla erősítésű csomóponttal készül a
+mérési pont *után*, tehát a jel teljes, csak nem hallható. A kétszeres sebesség miatt
+a mért tempó kétszerese a valósnak — ez vissza van osztva.
+
+### Amit ez nem tud
+
+**Nem ismeri fel a mixben szóló számokat**, és nem ad tracklistát. Ahhoz
+hangfelismerő szolgáltatás kellene (pl. ACRCloud), ami használatarányos díjú, és a
+hangot el kell küldeni hozzá. Az ingyenes AcoustID erre nem jó: egész számokat
+azonosít, és a fingerprintje érzékeny az időnyújtásra, ezért egy beatmatchelt mixen
+gyenge a találati aránya.
+
+**Nem ad műfaj-címkét.** Egy tanított modell rátenné, hogy „techno", és elég gyakran
+tévedne ahhoz, hogy félrevezető legyen. Ami itt van, az mérés — nem tipp.
+
+### Generált borítók
+
+Ugyanabból a mérésből **borító is készül** azoknak, amiknek nincs. A kép a felvétel
+saját spektrumából áll össze: vízszintesen az idő, függőlegesen a frekvencia — egy
+kis spektrogram a megmért szakaszról, alatta a cím. Minden mix más képet kap, mégis
+egy sorozatba illenek.
+
+Valódi borítóképként (featured image) kerül be a médiatárba, `_pl_generated_cover`
+jelöléssel, tehát később megkülönböztethető attól, amit kézzel választottál.
+
+**Miért generálás és nem letöltés:** idegen képeket az internetről letölteni és a
+saját oldalon közzétenni szerzői jogi jogsértés. A MusicBrainz Cover Art Archive
+legális, de csak kiadott albumokhoz van benne kép — egy DJ mix nincs benne. A
+generálás jogilag tiszta, és koherensebb is.
 
 ## Élő ekvalizér
 
