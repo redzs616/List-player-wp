@@ -893,6 +893,10 @@
 
 .plp-track {
 	display: flex;
+	/* The chapter list asks for a full row of its own (flex: 1 1 100%), which it can
+	   only get if the line is allowed to wrap. Without this it gets squeezed into the
+	   same line as the title and the buttons. */
+	flex-wrap: wrap;
 	gap: 12px;
 	align-items: center;
 	margin: 0;

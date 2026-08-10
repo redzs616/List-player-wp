@@ -72,7 +72,9 @@
 			headers['X-WP-Nonce'] = PLPlayer.nonce;
 		}
 
-		var init = {
+		// Not `init`: that is also a function name in this file, and a hoisted var
+		// shadowing it is exactly the kind of bug that cost the hero play button.
+		var requestInit = {
 			method: options.method || 'GET',
 			headers: headers,
 			credentials: 'same-origin'
@@ -80,10 +82,10 @@
 
 		if ( options.body ) {
 			headers['Content-Type'] = 'application/json';
-			init.body = JSON.stringify( options.body );
+			requestInit.body = JSON.stringify( options.body );
 		}
 
-		return fetch( endpoint( path, params ), init ).then( function ( response ) {
+		return fetch( endpoint( path, params ), requestInit ).then( function ( response ) {
 			return response.text().then( function ( text ) {
 				var data = null;
 
@@ -512,9 +514,15 @@
 			// Must happen before play(), see prepareEq().
 			prepareEq();
 
-			audio.play().catch( function () {
-				// Autoplay refused — the visible controls are the way back in.
+			audio.play().catch( function ( error ) {
 				paintPlaying( false );
+
+				announce(
+					list,
+					( error && 'NotAllowedError' === error.name )
+						? PLPlayer.i18n.tapToPlay
+						: PLPlayer.i18n.playFailed
+				);
 			} );
 		}
 	}
@@ -524,12 +532,32 @@
 			return;
 		}
 
-		if ( audio.paused ) {
-			prepareEq();
-			audio.play().catch( function () {} );
-		} else {
+		if ( ! audio.paused ) {
 			audio.pause();
+
+			return;
 		}
+
+		// The bar belongs here too. Reaching play through this path — the panel already
+		// preselected a track, and the visitor pressed that row — used to start the
+		// sound with no bar and no sign anything had happened.
+		showBar();
+		prepareEq();
+
+		audio.play().then( function () {
+			announce( currentList, '' );
+		} ).catch( function ( error ) {
+			paintPlaying( false );
+
+			// Silently swallowing this was the reason "nothing happens" looked like
+			// nothing happening.
+			announce(
+				currentList,
+				( error && 'NotAllowedError' === error.name )
+					? PLPlayer.i18n.tapToPlay
+					: PLPlayer.i18n.playFailed
+			);
+		} );
 	}
 
 	function step( direction ) {
@@ -1029,7 +1057,9 @@
 		}
 
 		try {
-			viz.ctx = new Ctx();
+			if ( ! viz.ctx ) {
+				viz.ctx = new Ctx();
+			}
 
 			var source = viz.ctx.createMediaElementSource( audio );
 
@@ -1156,11 +1186,37 @@
 			return;
 		}
 
-		ensureAnalyser();
+		var Ctx = window.AudioContext || window.webkitAudioContext;
 
-		if ( viz.ctx && 'suspended' === viz.ctx.state ) {
-			viz.ctx.resume().catch( function () {} );
+		if ( ! Ctx ) {
+			viz.failed = true;
+
+			return;
 		}
+
+		if ( ! viz.ctx ) {
+			try {
+				viz.ctx = new Ctx();
+			} catch ( error ) {
+				viz.failed = true;
+
+				return;
+			}
+		}
+
+		// The decisive guard. Routing the element into a context that is not running
+		// sends the sound into a dead graph, and createMediaElementSource cannot be
+		// undone — the element would be silent for the rest of the page. So we only
+		// wire it up once the context is genuinely running, ask for a resume otherwise,
+		// and let the equalizer sit out this play. A decoration must never be able to
+		// cost the audio.
+		if ( 'running' !== viz.ctx.state ) {
+			viz.ctx.resume().catch( function () {} );
+
+			return;
+		}
+
+		ensureAnalyser();
 	}
 
 	function startEq() {
@@ -1168,11 +1224,15 @@
 			return;
 		}
 
-		if ( ! viz.analyser && ! ensureAnalyser() ) {
+		// Never build the graph from here. This runs on the play event, when the
+		// element is already going: tapping it that late yields silence in Chrome,
+		// and a suspended context would take the sound with it. prepareEq() owns
+		// the wiring, and it runs before play(). No analyser simply means no bars.
+		if ( ! viz.analyser ) {
 			return;
 		}
 
-		if ( viz.ctx && 'suspended' === viz.ctx.state ) {
+		if ( 'suspended' === viz.ctx.state ) {
 			viz.ctx.resume().catch( function () {} );
 		}
 
@@ -1685,17 +1745,20 @@
 				return;
 			}
 
-			var toggle = event.target.closest( '[data-plp-chapters-toggle]' );
+			// Not named `toggle`: a var by that name is hoisted over the whole handler
+			// and shadows the toggle() function used above, which killed the hero play
+			// button outright.
+			var chaptersToggle = event.target.closest( '[data-plp-chapters-toggle]' );
 
-			if ( toggle ) {
+			if ( chaptersToggle ) {
 				event.preventDefault();
 
-				var panel = q( '[data-plp-chapters]', toggle.closest( '.plp-track' ) );
+				var panel = q( '[data-plp-chapters]', chaptersToggle.closest( '.plp-track' ) );
 
 				if ( panel ) {
 					var open = panel.hidden;
 					panel.hidden = ! open;
-					toggle.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+					chaptersToggle.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
 				}
 
 				return;

@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 1.7.1
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -65,6 +65,27 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Javítva (1.7.1 — a kiemelt panel play gombja):
+
+* **A kiemelt panel nagy play gombja nem indította el a zenét.** A fejezetek
+  lenyitásához felvett `toggle` nevű változó a JavaScript változó-felhúzása
+  miatt elárnyékolta az ugyanígy hívott `toggle()` függvényt, így a gomb
+  `TypeError`-ral elhalt, még mielőtt bármi történt volna. A változó új nevet
+  kapott, és a fájlban minden más ilyen névütközést is átvizsgáltunk.
+* Az ekvalizér többé nem tudja elvenni a hangot. A hangelemző eddig akkor is
+  bekötötte magát, ha az `AudioContext` nem futott — ilyenkor a hang egy halott
+  gráfba folyt, és nem volt visszaút. Innentől a bekötés csak futó
+  hangkörnyezetben történik meg, egyébként az ekvalizér kimarad, a zene szól.
+* A hangelemző gráf kizárólag a lejátszás **előtt** épül fel. Eddig a
+  `play` eseményből is megkísérelte — egy már szóló elemre kapcsolódva a
+  Chrome csendet ad vissza.
+* Ha a lejátszás mégis elhasal, azt a lejátszó kiírja. Eddig a hibát csendben
+  elnyelte, ezért látszott úgy, hogy a kattintásra semmi nem történik.
+* A kiemelt panel által előre kiválasztott szám indításakor megjelenik az alsó
+  ragadós sáv is. Eddig ez az egy útvonal kihagyta.
+* A számok sora tördelhető lett, így a fejezetlista a sor alá kerül, nem
+  szorul be a cím és a gombok közé.
 
 Elkészült (1.1.0 — saját lejátszási listák és élő ekvalizér):
 

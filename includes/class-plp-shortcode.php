@@ -94,6 +94,8 @@ class PLP_Shortcode {
 					'addedToList'  => __( 'Hozzáadva.', 'pl-player' ),
 					'listCreated'  => __( 'A lista elkészült, és a szám bekerült.', 'pl-player' ),
 					'needName'     => __( 'Adj nevet a listának.', 'pl-player' ),
+					'tapToPlay'    => __( 'A böngésző nem engedte magától elindulni — koppints vagy kattints még egyszer a lejátszásra.', 'pl-player' ),
+					'playFailed'   => __( 'A hangfájlt nem sikerült elindítani. Ellenőrizd, hogy elérhető-e.', 'pl-player' ),
 				),
 			)
 		);
