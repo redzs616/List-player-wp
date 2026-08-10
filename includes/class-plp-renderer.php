@@ -448,6 +448,22 @@ class PLP_Renderer {
 							<span class="plp-depth__hint"><?php esc_html_e( 'Hallgatottság a szám hossza mentén', 'pl-player' ); ?></span>
 						</div>
 					<?php endif; ?>
+
+					<?php // Rendered for everyone but hidden, and revealed only after the
+						// /me route confirms edit rights on this very track. Gating it in
+						// PHP would bake one visitor's answer into the page cache and then
+						// serve it to the wrong person — in whichever direction. ?>
+					<div class="plp-mark-edit" data-plp-mark-edit hidden>
+						<div class="plp-mark-edit__head">
+							<button type="button" class="plp-mark-edit__add" data-plp-mark-add>
+								<span class="plp-icon plp-icon--pin" aria-hidden="true"></span>
+								<?php esc_html_e( 'Jelölő ide', 'pl-player' ); ?>
+							</button>
+							<span class="plp-mark-edit__note" data-plp-mark-note role="status"></span>
+						</div>
+
+						<ul class="plp-mark-edit__list" data-plp-mark-list></ul>
+					</div>
 				</div>
 			</div>
 		</div>

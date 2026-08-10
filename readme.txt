@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.7.2
+Stable tag: 1.8.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -65,6 +65,30 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.8.0 — jelölők hallgatás közben, a lejátszóból):
+
+* **„Jelölő ide" gomb a kiemelt panelen.** Hallgatás közben odarakod a
+  jelölőt, ahol épp jár a zene — nem kell az admin felületre menni. A jelölő
+  azonnal mentődik, nem kell külön mentést nyomni.
+* Alatta a jelölők listája: a **időre kattintva odaugrik**, a névbe írhatsz,
+  az X törli. A név a mezőből kilépve vagy Enterre mentődik, nem
+  betűnként.
+* A jelölősáv és a szám alatti fejezetlista rögtön követi a változást,
+  újratöltés nélkül.
+* Csak annak látszik, aki **szerkesztheti azt a felvételt**. Látogató nem
+  látja, és nem is tud írni: a mentés poszt szintű jogosultságot ellenőriz,
+  nem csak bejelentkezést.
+* A gomb megjelenítéséről nem a PHP dönt, hanem egy REST kérdés a betöltés
+  után. Ez azért fontos, mert page cache mellett a szerveroldali eldöntés az
+  egyik látogató válaszát égeti bele a következő oldalába — vagy megmutatná a
+  gombot annak, akinek nem jár, vagy elrejtené attól, akinek jár.
+
+Ismert korlát: ha a gyorsítótár egy bejelentkezett szerkesztőnek is vendég
+oldalt szolgál ki, a gomb nem jelenik meg. A WordPress REST cookie-alapú
+azonosításához nonce kell, az pedig nem lehet gyorsítótárazott HTML-ben. A
+LiteSpeed Cache alapból nem gyorsítótáraz bejelentkezett felhasználónak, tehát
+ez a gyakorlatban nem szokott előfordulni.
 
 Javítva (1.7.2 — kirakott lejátszási listák):
 

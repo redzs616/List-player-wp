@@ -665,7 +665,11 @@
 				about: q( '[data-plp-about]', root ),
 				depth: q( '[data-plp-depth]', root ),
 				listened: q( '[data-plp-listened]', root ),
-				curve: q( '[data-plp-curve]', root )
+				curve: q( '[data-plp-curve]', root ),
+				markEdit: q( '[data-plp-mark-edit]', root ),
+				markAdd: q( '[data-plp-mark-add]', root ),
+				markList: q( '[data-plp-mark-list]', root ),
+				markNote: q( '[data-plp-mark-note]', root )
 			} : null;
 		}
 
@@ -734,6 +738,10 @@
 
 		paintMarks( item, hero );
 		syncHeroStats( item, hero );
+
+		// The editor follows whichever track is in the panel, and stays hidden unless
+		// this visitor may edit that one.
+		paintMarkEditor( list );
 	}
 
 	/**
@@ -844,6 +852,293 @@
 		} catch ( error ) {
 			return [];
 		}
+	}
+
+	/* ------------------------------------------------------------------
+	 * Marker editing, for whoever may edit the recording
+	 *
+	 * The controls exist in the markup for everyone but stay hidden until the /me
+	 * route says this visitor may edit this very post. That check cannot happen in
+	 * PHP: a page cache would freeze one visitor's answer and hand it to the next.
+	 * --------------------------------------------------------------- */
+
+	/** Post ID (as string) -> may edit. Absent means "not asked yet". */
+	var editRights = {};
+
+	function mayEdit( item ) {
+		return item ? true === editRights[ item.getAttribute( 'data-id' ) ] : false;
+	}
+
+	function probeRights( list ) {
+		// No nonce, no point asking. WordPress REST cookie authentication needs the
+		// X-WP-Nonce header, so without one current_user_can() is false there even with
+		// a valid session — the answer could only be "no", and a save could not succeed
+		// either. This spares every anonymous visitor a request.
+		if ( ! PLPlayer.nonce ) {
+			return;
+		}
+
+		var unknown = qa( '.plp-track', list )
+			.map( function ( item ) {
+				return item.getAttribute( 'data-id' );
+			} )
+			.filter( function ( id ) {
+				return id && ! ( id in editRights );
+			} );
+
+		if ( ! unknown.length ) {
+			paintMarkEditor( list );
+
+			return;
+		}
+
+		request( '/me', { ids: unknown.join( ',' ) } ).then( function ( data ) {
+			// Record the noes too, so a second look does not re-ask.
+			unknown.forEach( function ( id ) {
+				editRights[ id ] = false;
+			} );
+
+			( ( data && data.editable ) || [] ).forEach( function ( id ) {
+				editRights[ String( id ) ] = true;
+			} );
+
+			paintMarkEditor( list );
+		} ).catch( function () {
+			// A visitor with no rights is the normal case, not an error worth showing.
+		} );
+	}
+
+	function paintMarkEditor( list ) {
+		var hero = heroOf( list );
+
+		if ( ! hero || ! hero.markEdit || ! hero.markList ) {
+			return;
+		}
+
+		var item = ( currentList === list ) ? currentItem : null;
+		var allowed = mayEdit( item );
+
+		hero.markEdit.hidden = ! allowed;
+
+		if ( ! allowed ) {
+			return;
+		}
+
+		var markers = readMarkers( item );
+
+		hero.markList.textContent = '';
+
+		markers.forEach( function ( marker, index ) {
+			var li = document.createElement( 'li' );
+			li.className = 'plp-mark-edit__row';
+			li.setAttribute( 'data-plp-mark-row', String( marker.t ) );
+
+			var jump = document.createElement( 'button' );
+			jump.type = 'button';
+			jump.className = 'plp-mark-edit__time';
+			jump.setAttribute( 'data-plp-mark-jump', String( marker.t ) );
+			jump.textContent = marker.time || formatTime( marker.t );
+			jump.title = PLPlayer.i18n.markJump;
+			li.appendChild( jump );
+
+			var name = document.createElement( 'input' );
+			name.type = 'text';
+			name.className = 'plp-mark-edit__name';
+			// The stored name only. The generated "3. rész" belongs in the placeholder,
+			// never in the field, or it would be saved as if someone had typed it.
+			name.value = marker.l || '';
+			name.placeholder = PLPlayer.i18n.markNamePlaceholder.replace( '%d', index + 1 );
+			name.setAttribute( 'data-plp-mark-name', String( marker.t ) );
+			name.setAttribute( 'aria-label', PLPlayer.i18n.markName );
+			li.appendChild( name );
+
+			var remove = document.createElement( 'button' );
+			remove.type = 'button';
+			remove.className = 'plp-mark-edit__remove';
+			remove.setAttribute( 'data-plp-mark-remove', String( marker.t ) );
+			remove.setAttribute( 'aria-label', PLPlayer.i18n.markRemove );
+			remove.innerHTML = '<span class="plp-icon plp-icon--close" aria-hidden="true"></span>';
+			li.appendChild( remove );
+
+			hero.markList.appendChild( li );
+		} );
+	}
+
+	/**
+	 * The marker list as the server wants it: bare seconds and labels.
+	 */
+	function markerPayload( item ) {
+		return readMarkers( item ).map( function ( marker ) {
+			return { t: marker.t, l: marker.l || '' };
+		} );
+	}
+
+	function saveMarkers( item, list, markers, note ) {
+		var hero = heroOf( list );
+		var id = item.getAttribute( 'data-id' );
+
+		if ( hero && hero.markNote ) {
+			hero.markNote.textContent = PLPlayer.i18n.saving;
+		}
+
+		return request( '/tracks/' + id + '/markers', null, {
+			method: 'POST',
+			body: { markers: markers }
+		} ).then( function ( data ) {
+			// The server's cleaned list wins: it de-duplicates and sorts, so the screen
+			// must show what was actually stored rather than what we sent.
+			item.setAttribute( 'data-markers', JSON.stringify( data.markers || [] ) );
+
+			paintMarks( item, hero );
+			paintChapters( item );
+			paintMarkEditor( list );
+
+			if ( hero && hero.markNote ) {
+				hero.markNote.textContent = note || PLPlayer.i18n.markSaved;
+			}
+		} ).catch( function () {
+			if ( hero && hero.markNote ) {
+				hero.markNote.textContent = PLPlayer.i18n.markFailed;
+			}
+		} );
+	}
+
+	function addMarkerHere( item, list ) {
+		var at = Math.max( 0, Math.floor( audio.currentTime || 0 ) );
+		var markers = markerPayload( item );
+
+		var clash = markers.some( function ( marker ) {
+			return marker.t === at;
+		} );
+
+		if ( clash ) {
+			var hero = heroOf( list );
+
+			if ( hero && hero.markNote ) {
+				hero.markNote.textContent = PLPlayer.i18n.markExists;
+			}
+
+			return;
+		}
+
+		markers.push( { t: at, l: '' } );
+
+		saveMarkers(
+			item,
+			list,
+			markers,
+			PLPlayer.i18n.markAdded.replace( '%s', formatTime( at ) )
+		);
+	}
+
+	function removeMarker( item, list, at ) {
+		saveMarkers(
+			item,
+			list,
+			markerPayload( item ).filter( function ( marker ) {
+				return marker.t !== at;
+			} ),
+			PLPlayer.i18n.markRemoved
+		);
+	}
+
+	function renameMarker( item, list, at, label ) {
+		var markers = markerPayload( item );
+		var changed = false;
+
+		markers.forEach( function ( marker ) {
+			if ( marker.t === at && marker.l !== label ) {
+				marker.l = label;
+				changed = true;
+			}
+		} );
+
+		if ( ! changed ) {
+			return;
+		}
+
+		saveMarkers( item, list, markers, PLPlayer.i18n.markSaved );
+	}
+
+	/**
+	 * Rebuilds the chapter list under a row, so it matches the markers after an edit.
+	 *
+	 * The row title doubles as the disclosure control, and it only exists in that form
+	 * when there is something to disclose — so going from none to some, or back, means
+	 * swapping that element too.
+	 */
+	function paintChapters( item ) {
+		var markers = readMarkers( item );
+		var existing = q( '[data-plp-chapters]', item );
+
+		if ( existing ) {
+			existing.remove();
+		}
+
+		var meta = q( '.plp-track__meta', item );
+		var title = q( '.plp-track__title', item );
+
+		if ( meta && title ) {
+			var wantToggle = markers.length > 0;
+			var isToggle = title.hasAttribute( 'data-plp-chapters-toggle' );
+
+			if ( wantToggle !== isToggle ) {
+				var replacement;
+
+				if ( wantToggle ) {
+					replacement = document.createElement( 'button' );
+					replacement.type = 'button';
+					replacement.className = 'plp-track__title plp-track__title--toggle';
+					replacement.setAttribute( 'aria-expanded', 'false' );
+					replacement.setAttribute( 'data-plp-chapters-toggle', '' );
+					replacement.textContent = title.textContent;
+
+					var caret = document.createElement( 'span' );
+					caret.className = 'plp-track__caret';
+					caret.setAttribute( 'aria-hidden', 'true' );
+					replacement.appendChild( caret );
+				} else {
+					replacement = document.createElement( 'span' );
+					replacement.className = 'plp-track__title';
+					replacement.textContent = title.textContent;
+				}
+
+				title.replaceWith( replacement );
+			}
+		}
+
+		if ( ! markers.length ) {
+			return;
+		}
+
+		var chapters = document.createElement( 'ol' );
+		chapters.className = 'plp-chapters';
+		chapters.setAttribute( 'data-plp-chapters', '' );
+		chapters.hidden = true;
+
+		markers.forEach( function ( marker ) {
+			var li = document.createElement( 'li' );
+			var jump = document.createElement( 'button' );
+
+			jump.type = 'button';
+			jump.className = 'plp-chapters__jump';
+			jump.setAttribute( 'data-plp-chapter', marker.t );
+
+			var time = document.createElement( 'span' );
+			time.className = 'plp-chapters__time';
+			time.textContent = marker.time || formatTime( marker.t );
+			jump.appendChild( time );
+
+			var label = document.createElement( 'span' );
+			label.className = 'plp-chapters__label';
+			label.textContent = marker.label || '';
+			jump.appendChild( label );
+
+			li.appendChild( jump );
+			chapters.appendChild( li );
+		} );
+
+		item.appendChild( chapters );
 	}
 
 	/**
@@ -1572,36 +1867,9 @@
 
 		item.appendChild( stats );
 
-		if ( markers.length ) {
-			var chapters = document.createElement( 'ol' );
-			chapters.className = 'plp-chapters';
-			chapters.setAttribute( 'data-plp-chapters', '' );
-			chapters.hidden = true;
-
-			markers.forEach( function ( marker ) {
-				var li = document.createElement( 'li' );
-				var jump = document.createElement( 'button' );
-
-				jump.type = 'button';
-				jump.className = 'plp-chapters__jump';
-				jump.setAttribute( 'data-plp-chapter', marker.t );
-
-				var time = document.createElement( 'span' );
-				time.className = 'plp-chapters__time';
-				time.textContent = marker.time || '';
-				jump.appendChild( time );
-
-				var label = document.createElement( 'span' );
-				label.className = 'plp-chapters__label';
-				label.textContent = marker.label || '';
-				jump.appendChild( label );
-
-				li.appendChild( jump );
-				chapters.appendChild( li );
-			} );
-
-			item.appendChild( chapters );
-		}
+		// One builder for the chapter list, shared with the marker editor, so a row
+		// rebuilt after an edit cannot drift from a row that arrived from the server.
+		paintChapters( item );
 
 		return item;
 	}
@@ -1690,6 +1958,8 @@
 			}
 
 			loadCounters( list );
+			// Freshly arrived rows have not been asked about yet.
+			probeRights( list );
 		} ).catch( function ( error ) {
 			announce( list, ( error && error.message ) || PLPlayer.i18n.error );
 
@@ -1744,6 +2014,40 @@
 
 				if ( currentItem ) {
 					shareTrack( currentItem, list );
+				}
+
+				return;
+			}
+
+			if ( event.target.closest( '[data-plp-mark-add]' ) ) {
+				event.preventDefault();
+
+				if ( currentItem && mayEdit( currentItem ) ) {
+					addMarkerHere( currentItem, list );
+				}
+
+				return;
+			}
+
+			var markJump = event.target.closest( '[data-plp-mark-jump]' );
+
+			if ( markJump ) {
+				event.preventDefault();
+
+				if ( currentItem ) {
+					seekTo( currentItem, list, parseInt( markJump.getAttribute( 'data-plp-mark-jump' ), 10 ) || 0 );
+				}
+
+				return;
+			}
+
+			var markRemove = event.target.closest( '[data-plp-mark-remove]' );
+
+			if ( markRemove ) {
+				event.preventDefault();
+
+				if ( currentItem && mayEdit( currentItem ) ) {
+					removeMarker( currentItem, list, parseInt( markRemove.getAttribute( 'data-plp-mark-remove' ), 10 ) || 0 );
 				}
 
 				return;
@@ -1895,6 +2199,34 @@
 			}
 		} );
 
+		// Renaming a marker saves on commit — blur or Enter — rather than on each
+		// keystroke, so a name is written once instead of letter by letter.
+		list.addEventListener( 'change', function ( event ) {
+			var field = event.target.closest ? event.target.closest( '[data-plp-mark-name]' ) : null;
+
+			if ( ! field || ! currentItem || ! mayEdit( currentItem ) ) {
+				return;
+			}
+
+			renameMarker(
+				currentItem,
+				list,
+				parseInt( field.getAttribute( 'data-plp-mark-name' ), 10 ) || 0,
+				field.value.trim()
+			);
+		} );
+
+		list.addEventListener( 'keydown', function ( event ) {
+			if ( 'Enter' !== event.key || ! event.target.closest ) {
+				return;
+			}
+
+			if ( event.target.closest( '[data-plp-mark-name]' ) ) {
+				event.preventDefault();
+				event.target.blur();
+			}
+		} );
+
 		var sort = q( '.plp-sort__select', list );
 
 		if ( sort ) {
@@ -1947,6 +2279,7 @@
 		}
 
 		loadCounters( list );
+		probeRights( list );
 	}
 
 	function wireBar() {

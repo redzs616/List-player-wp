@@ -188,6 +188,46 @@ class PLP_Rest {
 			)
 		);
 
+		// Which of these tracks the caller may edit. The editor controls are rendered
+		// hidden and revealed by this answer, because a page cache cannot be trusted to
+		// keep an editor's HTML away from a visitor — or the other way round, which
+		// would hide the tools from the person who owns them.
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/me',
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'get_me' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(
+					'ids' => array(
+						'description' => __( 'Poszt azonosítók, vesszővel.', 'pl-player' ),
+						'type'        => 'string',
+						'default'     => '',
+					),
+				),
+			)
+		);
+
+		// Markers belong to the recording, so writing them needs edit rights on that
+		// exact post — not merely a logged-in session.
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/tracks/(?P<id>\d+)/markers',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'post_markers' ),
+				'permission_callback' => array( __CLASS__, 'can_edit_track' ),
+				'args'                => array(
+					'markers' => array(
+						'type'     => 'array',
+						'required' => true,
+						'items'    => array( 'type' => 'object' ),
+					),
+				),
+			)
+		);
+
 		register_rest_route(
 			self::NAMESPACE_V1,
 			'/playlists/(?P<id>\d+)/add',
@@ -359,11 +399,7 @@ class PLP_Rest {
 	 * @return WP_REST_Response
 	 */
 	public static function get_counters( WP_REST_Request $request ) {
-		$ids = array_values(
-			array_filter( array_map( 'absint', explode( ',', (string) $request->get_param( 'ids' ) ) ) )
-		);
-
-		$ids = array_slice( array_unique( $ids ), 0, 100 );
+		$ids = self::ids( (string) $request->get_param( 'ids' ) );
 
 		$response = rest_ensure_response( array( 'counters' => PLP_Stats::counters( $ids ) ) );
 
@@ -576,6 +612,103 @@ class PLP_Rest {
 	}
 
 	/* ---------------------------------------------------------------------
+	 * The caller's own rights, and markers
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * What the caller is allowed to do, for the tracks on screen.
+	 *
+	 * Deliberately readable by anyone: a visitor simply gets everything false. That is
+	 * what makes it safe to ask on a page-cached front end.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function get_me( WP_REST_Request $request ) {
+		$editable = array();
+
+		foreach ( self::ids( (string) $request->get_param( 'ids' ) ) as $id ) {
+			if ( current_user_can( 'edit_post', $id ) ) {
+				$editable[] = $id;
+			}
+		}
+
+		return self::no_store(
+			rest_ensure_response(
+				array(
+					'loggedIn'         => is_user_logged_in(),
+					'canEditPosts'    => current_user_can( 'edit_posts' ),
+					'canPublishPosts' => current_user_can( 'publish_posts' ),
+					// Per post, not per role: a contributor may own some of these and
+					// none of the others.
+					'editable'        => $editable,
+				)
+			)
+		);
+	}
+
+	/**
+	 * Whether the caller may edit the track named in the route.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	public static function can_edit_track( WP_REST_Request $request ) {
+		$id   = absint( $request->get_param( 'id' ) );
+		$post = $id ? get_post( $id ) : null;
+
+		if ( ! $post || ! in_array( $post->post_type, PLP_Source::post_types(), true ) ) {
+			return false;
+		}
+
+		return current_user_can( 'edit_post', $id );
+	}
+
+	/**
+	 * Replaces the marker list of a track.
+	 *
+	 * The whole set arrives each time rather than a single add or remove: the client
+	 * already holds the list, and one write path means the admin screen and the front
+	 * end cannot drift apart in how they validate.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function post_markers( WP_REST_Request $request ) {
+		$id  = absint( $request->get_param( 'id' ) );
+		$raw = (array) $request->get_param( 'markers' );
+
+		$markers = PLP_Markers::clean(
+			array_map(
+				static function ( $marker ) {
+					$marker = (array) $marker;
+
+					return array(
+						't' => isset( $marker['t'] ) ? absint( $marker['t'] ) : -1,
+						'l' => isset( $marker['l'] ) ? (string) $marker['l'] : '',
+					);
+				},
+				$raw
+			)
+		);
+
+		if ( $markers ) {
+			update_post_meta( $id, PLP_Markers::META, (string) wp_json_encode( $markers ) );
+		} else {
+			delete_post_meta( $id, PLP_Markers::META );
+		}
+
+		return self::no_store(
+			rest_ensure_response(
+				array(
+					'id'      => $id,
+					'markers' => PLP_Markers::for_display( $id ),
+				)
+			)
+		);
+	}
+
+	/* ---------------------------------------------------------------------
 	 * Playlists
 	 * ------------------------------------------------------------------ */
 
@@ -737,5 +870,22 @@ class PLP_Rest {
 		$response->header( 'Cache-Control', 'no-store, max-age=0' );
 
 		return $response;
+	}
+
+	/**
+	 * Parses a comma-separated list of post IDs.
+	 *
+	 * Capped, because these lists come straight from a query string and each ID costs
+	 * a capability check or a row lookup further down.
+	 *
+	 * @param string $raw Comma-separated IDs.
+	 * @return int[]
+	 */
+	private static function ids( $raw ) {
+		$ids = array_values(
+			array_filter( array_map( 'absint', explode( ',', (string) $raw ) ) )
+		);
+
+		return array_slice( array_unique( $ids ), 0, 100 );
 	}
 }

@@ -94,6 +94,17 @@ class PLP_Shortcode {
 					'addedToList'  => __( 'Hozzáadva.', 'pl-player' ),
 					'listCreated'  => __( 'A lista elkészült, és a szám bekerült.', 'pl-player' ),
 					'needName'     => __( 'Adj nevet a listának.', 'pl-player' ),
+					'markJump'     => __( 'Ugrás ide', 'pl-player' ),
+					'markName'     => __( 'A jelölő megnevezése', 'pl-player' ),
+					/* translators: %d: marker number. */
+					'markNamePlaceholder' => __( '%d. rész', 'pl-player' ),
+					'markRemove'   => __( 'Jelölő törlése', 'pl-player' ),
+					/* translators: %s: timestamp, for example 12:34. */
+					'markAdded'    => __( 'Jelölő: %s', 'pl-player' ),
+					'markRemoved'  => __( 'Jelölő törölve.', 'pl-player' ),
+					'markSaved'    => __( 'Mentve.', 'pl-player' ),
+					'markExists'   => __( 'Ezen a másodpercen már van jelölő.', 'pl-player' ),
+					'markFailed'   => __( 'A jelölőt nem sikerült mentenie. Töltsd újra az oldalt, és próbáld megint.', 'pl-player' ),
 					'tapToPlay'    => __( 'A böngésző nem engedte magától elindulni — koppints vagy kattints még egyszer a lejátszásra.', 'pl-player' ),
 					'playFailed'   => __( 'A hangfájlt nem sikerült elindítani. Ellenőrizd, hogy elérhető-e.', 'pl-player' ),
 				),

@@ -140,6 +140,10 @@ class PLP_Markers {
 		foreach ( self::get( $post_id ) as $index => $marker ) {
 			$out[] = array(
 				't'     => $marker['t'],
+				// The stored name, carried verbatim alongside the display one. The editor
+				// needs to tell "unnamed" from the generated "3. rész", or saving would
+				// freeze that numbering into the data and break it on the next reorder.
+				'l'     => $marker['l'],
 				'label' => '' !== $marker['l']
 					? $marker['l']
 					: sprintf(

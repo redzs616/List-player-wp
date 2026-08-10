@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.7.2-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.8.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -216,6 +216,60 @@ A választott lista **valódi URL-t kap** (`?plp_list=slug`), nem helyben cseré
 működik a vissza gomb, egy lista linkje megosztható, és minden állapot külön
 gyorsítótárazódik ahelyett, hogy minden látogató újra lekérné ugyanazt.
 
+## Időbélyeg-jelölők
+
+Egy 90 perces mixnél a jelölők adják a tracklistát. A látogatónál a szám **címe
+gombbá válik** egy kis nyíllal: rákattint, lenyílik alatta a fejezetlista, és
+bármelyik pontra kattintva odaugrik. Jelölő nélküli szám címe sima szöveg marad. A
+kiemelt panel csúszkáján a jelölők apró vonalkákként is látszanak.
+
+Kétféleképpen vihetők fel.
+
+### Hallgatás közben, a lejátszóból
+
+Ha be vagy jelentkezve, és **szerkesztheted azt a felvételt**, a kiemelt panelen
+megjelenik egy **„Jelölő ide"** gomb. Hallgatás közben oda teszed a jelölőt, ahol
+épp jár a zene — mentés gomb nélkül, azonnal.
+
+Alatta ott a jelölők listája:
+
+- az **időre kattintva** odaugrik a lejátszás
+- a **névbe írhatsz**; a mezőből kilépve vagy Enterre mentődik, nem betűnként
+- az **X** törli
+
+A jelölősáv és a szám alatti fejezetlista rögtön követi, újratöltés nélkül.
+
+Látogató ebből semmit nem lát, és nem is tud írni: a mentés **poszt szintű**
+jogosultságot ellenőriz, nem csak azt, hogy valaki be van-e jelentkezve.
+
+> A gomb megjelenéséről nem a PHP dönt, hanem egy REST kérdés a betöltés után
+> (`GET /me`). Page cache mellett a szerveroldali eldöntés az egyik látogató
+> válaszát égetné bele a következő oldalába — vagy megmutatná a gombot annak,
+> akinek nem jár, vagy elrejtené attól, akinek jár.
+>
+> Ennek egy korlátja van: ha a gyorsítótár egy bejelentkezett szerkesztőnek is
+> vendég oldalt ad, a gomb nem jelenik meg. A WordPress REST cookie-alapú
+> azonosításához nonce kell, az pedig nem lehet gyorsítótárazott HTML-ben. A
+> LiteSpeed Cache alapból nem gyorsítótáraz bejelentkezett felhasználónak, tehát a
+> gyakorlatban ez nem szokott előfordulni.
+
+### Az admin felületen
+
+A szám vagy a podcast epizód szerkesztőjében, a szövegtörzs alatt: **„Időbélyegek a
+felvételen"**. Itt egy nagyobb sávon dolgozol:
+
+- a **sávra kattintva** kerül oda jelölő
+- a meglévőket **megfoghatod és elhúzhatod**
+- a táblázatban átírható az **idő** (`1:23`, `12:30`, `1:23:45`) és a **név**
+- a **„Jelölő a mostani pozíciónál"** gomb oda tesz egyet, ahol a lejátszás áll
+
+Itt a jelölők a **poszt mentésekor** kerülnek be, tehát mentened kell.
+
+Egy másodpercre csak egy jelölő eshet, és számonként legfeljebb 100 lehet. A
+névtelen jelölők „1. rész", „2. rész" néven jelennek meg — ez **nem** kerül bele az
+adatbázisba, csak megjelenítéskor generálódik, így új jelölő beszúrásakor a
+számozás magától újrarendeződik.
+
 ## Elemzés és generált borítók
 
 **Lejátszó → Elemzés.** A böngésző végigmegy a számokon, és **magából a hangból**
@@ -396,19 +450,33 @@ Névtér: `plplayer/v1`
 
 | Metódus | Végpont | Leírás |
 |---|---|---|
-| `GET` | `/tracks` | Lista. Paraméterek: `terms`, `post_type`, `search`, `orderby`, `order`, `page`, `per_page` |
+| `GET` | `/tracks` | Lista. Paraméterek: `terms`, `playlist`, `post_type`, `search`, `orderby`, `order`, `page`, `per_page` |
 | `GET` | `/categories` | Kategóriafa minden bevont taxonómiából |
 | `GET` | `/counters?ids=1,2,3` | Számlálók és a látogató kedvelés-állapota |
+| `GET` | `/me?ids=1,2,3` | Mit tehet a kérő: be van-e jelentkezve, és a felsoroltak közül melyiket szerkesztheti |
 | `POST` | `/tracks/{id}/play` | Lejátszás rögzítése |
 | `POST` | `/tracks/{id}/like` | Kedvelés be- és kikapcsolása |
 | `POST` | `/tracks/{id}/progress` | Hallgatott másodpercek és a lehallgatott szeletek |
+| `POST` | `/tracks/{id}/markers` | A jelölők teljes listájának felülírása. **Nonce + `edit_post` az adott poszton** |
 | `GET` | `/tracks/{id}/stats` | Egy szám nyilvános adatai, hallgatási görbével |
 | `GET` | `/stats/public` | Nyilvános top listák és forgalmi trend |
+| `GET`, `POST` | `/playlists` | Listák, illetve új lista. **Nonce + jogosultság** |
+| `POST` | `/playlists/{id}/add` | Szám hozzáadása listához. **Nonce + jogosultság** |
 
-Az író végpontok szándékosan nem kérnek nonce-ot. Page cache mellett a HTML — és a
-benne kinyomtatott nonce — közös minden látogatónál és elavul, tehát pont azoknak
-törné el a kedvelést, akiket védeni hivatott. Helyette same-origin ellenőrzés és
-kérés-limit van; a legrosszabb, amit egy hamisított kérés elérhet, egy kedvelés.
+A **statisztikai** író végpontok (`play`, `like`, `progress`) szándékosan nem kérnek
+nonce-ot. Page cache mellett a HTML — és a benne kinyomtatott nonce — közös minden
+látogatónál és elavul, tehát pont azoknak törné el a kedvelést, akiket védeni
+hivatott. Helyette same-origin ellenőrzés és kérés-limit van; a legrosszabb, amit egy
+hamisított kérés elérhet, egy kedvelés.
+
+A **tartalmat író** végpontok — `markers`, `playlists` — ellenben nonce-ot **és**
+jogosultságot kérnek, a jelölőknél poszt szinten (`edit_post`), nem csak
+„be van jelentkezve" szinten. Itt nincs cache-dilemma: aki ír, az bejelentkezett, és
+neki a nonce rendelkezésre áll.
+
+A `/me` bárkinek válaszol, mert a válasz vendégnek csupa hamis. Épp ez teszi
+biztonságossá gyorsítótárazott frontenden megkérdezni, hogy megjelenjenek-e a
+szerkesztő kezelőelemek.
 
 Ha a webszerver blokkolja a `/wp-json/` útvonalat (LiteSpeed és mod_security mellett
 gyakori), a frontend magától átvált a `?rest_route=` formára, és a váltást megjegyzi a
