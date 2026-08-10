@@ -239,6 +239,52 @@
 	}
 
 	/* ------------------------------------------------------------------
+	 * Sharing
+	 * --------------------------------------------------------------- */
+
+	/**
+	 * Hands the track's own page to whatever the device shares with.
+	 *
+	 * The native share sheet is the whole point: on a phone it already lists Messenger,
+	 * WhatsApp and everything else the visitor has, with no third-party buttons and no
+	 * tracking scripts of ours. Desktop browsers mostly lack it, so there the link goes
+	 * to the clipboard instead.
+	 */
+	function shareTrack( item, list ) {
+		var url = item.getAttribute( 'data-url' );
+
+		if ( ! url ) {
+			return;
+		}
+
+		var payload = {
+			title: item.getAttribute( 'data-title' ) || document.title,
+			url: url
+		};
+
+		if ( navigator.share ) {
+			navigator.share( payload ).catch( function () {
+				// A cancelled share sheet lands here too; nothing to report.
+			} );
+
+			return;
+		}
+
+		if ( navigator.clipboard && navigator.clipboard.writeText ) {
+			navigator.clipboard.writeText( url ).then( function () {
+				announce( list, PLPlayer.i18n.linkCopied );
+			} ).catch( function () {
+				announce( list, url );
+			} );
+
+			return;
+		}
+
+		// Last resort: show the address so it can be copied by hand.
+		announce( list, url );
+	}
+
+	/* ------------------------------------------------------------------
 	 * Likes
 	 * --------------------------------------------------------------- */
 
@@ -1105,6 +1151,9 @@
 		item.setAttribute( 'data-hue', track.hue || 250 );
 		item.setAttribute( 'data-initial', track.initial || '' );
 		item.setAttribute( 'data-duration', track.duration || 0 );
+		item.setAttribute( 'data-labels', ( track.labels || [] ).join( '|' ) );
+		item.setAttribute( 'data-about', track.description || '' );
+		item.setAttribute( 'data-url', track.permalink || '' );
 
 		var play = document.createElement( 'button' );
 		play.type = 'button';
@@ -1165,6 +1214,13 @@
 		like.setAttribute( 'aria-label', PLPlayer.i18n.like );
 		like.innerHTML = '<span class="plp-icon plp-icon--heart" aria-hidden="true"></span><span class="plp-like__count"></span>';
 		stats.appendChild( like );
+
+		var share = document.createElement( 'button' );
+		share.type = 'button';
+		share.className = 'plp-share';
+		share.setAttribute( 'aria-label', PLPlayer.i18n.share );
+		share.innerHTML = '<span class="plp-icon plp-icon--share" aria-hidden="true"></span>';
+		stats.appendChild( share );
 
 		if ( showStats ) {
 			var plays = document.createElement( 'span' );
@@ -1303,6 +1359,25 @@
 				if ( currentItem ) {
 					toggleLike( currentItem, list );
 				}
+
+				return;
+			}
+
+			if ( event.target.closest( '[data-plp-hero-share]' ) ) {
+				event.preventDefault();
+
+				if ( currentItem ) {
+					shareTrack( currentItem, list );
+				}
+
+				return;
+			}
+
+			var shareButton = event.target.closest( '.plp-share' );
+
+			if ( shareButton ) {
+				event.preventDefault();
+				shareTrack( shareButton.closest( '.plp-track' ), list );
 
 				return;
 			}

@@ -373,6 +373,12 @@ class PLP_Renderer {
 								<span data-plp-hero-likes></span>
 							</button>
 
+							<button type="button" class="plp-hero__like plp-hero__share" data-plp-hero-share
+								aria-label="<?php esc_attr_e( 'Megosztás', 'pl-player' ); ?>">
+								<span class="plp-icon plp-icon--share" aria-hidden="true"></span>
+								<?php esc_html_e( 'Megosztás', 'pl-player' ); ?>
+							</button>
+
 							<?php if ( $show_stats ) : ?>
 								<span class="plp-hero__plays" title="<?php esc_attr_e( 'Lejátszások', 'pl-player' ); ?>">
 									<span class="plp-icon plp-icon--headphones" aria-hidden="true"></span>
@@ -597,6 +603,7 @@ class PLP_Renderer {
 			data-initial="<?php echo esc_attr( $track['initial'] ); ?>"
 			data-labels="<?php echo esc_attr( implode( '|', $track['labels'] ) ); ?>"
 			data-about="<?php echo esc_attr( $track['description'] ); ?>"
+			data-url="<?php echo esc_url( $track['permalink'] ); ?>"
 			data-duration="<?php echo esc_attr( (string) $track['duration'] ); ?>">
 
 			<button type="button" class="plp-track__play" aria-label="<?php
@@ -628,6 +635,10 @@ class PLP_Renderer {
 				<button type="button" class="plp-like" aria-pressed="false" aria-label="<?php esc_attr_e( 'Kedvelés', 'pl-player' ); ?>">
 					<span class="plp-icon plp-icon--heart" aria-hidden="true"></span>
 					<span class="plp-like__count"></span>
+				</button>
+
+				<button type="button" class="plp-share" aria-label="<?php esc_attr_e( 'Megosztás', 'pl-player' ); ?>">
+					<span class="plp-icon plp-icon--share" aria-hidden="true"></span>
 				</button>
 
 				<?php if ( $show_stats ) : ?>

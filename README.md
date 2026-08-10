@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.3.0-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.4.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -57,6 +57,45 @@ Frissítésnél ugyanez a folyamat: nem kell kikapcsolni és nem kell törölni 
 WordPress felajánlja a *„Jelenlegi felülírása a feltöltöttel"* gombot. A zenék,
 kategóriák, beállítások és a statisztika az adatbázisban vannak, tehát érintetlenek.
 
+## Minden shortcode egy helyen
+
+A bővítmény **két** shortcode-ot ad. Bárhová beírhatók, ahol a WordPress feldolgozza
+őket: oldal, bejegyzés, Divi Szöveg vagy Kód modul, widget.
+
+| Shortcode | Mit tesz |
+|---|---|
+| `[playlist_player]` | A lejátszó: listázza és lejátssza a zenét |
+| `[playlist_stats]` | Nyilvános toplisták és forgalmi grafikon, önálló statisztika oldalhoz |
+
+### Kész példák, másolásra
+
+```
+// Kiemelt panel a saját kategóriafával, arany kiemeléssel
+[playlist_player layout="hero" accent="#f0a12e" nav_limit="10" equalizer="always"]
+
+// Egy műfaj kártyás rácsban, navigáció nélkül
+[playlist_player layout="grid" columns="4" category="deep-house" nav="no"]
+
+// A tíz legtöbbet hallgatott, tömör listában
+[playlist_player orderby="plays" limit="10" nav="no" search="no"]
+
+// Egy kézzel összeválogatott lista a saját sorrendjében
+[playlist_player playlist="nyari-mix" layout="hero"]
+
+// Csak a podcast epizódok
+[playlist_player post_type="podcast" layout="hero"]
+
+// Toplista oldal grafikonnal
+[playlist_stats limit="10" show="both" trend="yes" days="30" accent="#f0a12e"]
+
+// Toplista grafikon nélkül, csak a legkedveltebbek
+[playlist_stats show="likes" limit="20" trend="no"]
+```
+
+Az összes paraméter táblázatosan lentebb következik. Van rajtuk kívül egy harmadik
+bejárat is: a **Divi modul**, ami ugyanezt a lejátszót adja, csak kattintással
+állítva — lásd a *Divi modul* fejezetet.
+
 ## Használat
 
 Illeszd be a shortcode-ot bármelyik oldalba, bejegyzésbe, vagy page builder szöveg-
@@ -112,6 +151,18 @@ látogatónak ne kelljen külön kérést indítani.
 ### Billentyűzet
 
 `Space` lejátszás/megállítás · `←` `→` tekerés 5 másodperccel · `M` némítás
+
+### Kedvelés és megosztás
+
+Minden soron ott van a **kedvelés** és a **megosztás** gomb, a hossz mellett; a kiemelt
+panelen pedig nagyban, feliratozva.
+
+A megosztás a **böngésző saját megosztó felületét** hívja (`navigator.share`), tehát
+telefonon rögtön ott van a Messenger, WhatsApp és minden, amit a látogató használ —
+harmadik féltől származó gombok és követőszkriptek nélkül. Asztali böngészőkben ez
+általában nincs meg, ott a link a **vágólapra** kerül, és a lejátszó visszajelzi.
+
+Amit megoszt, az a szám **saját oldala** (`/zene/...`), nem az, ahol épp a lejátszó áll.
 
 ## Saját lejátszási listák
 

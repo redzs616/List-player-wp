@@ -81,6 +81,8 @@ class PLP_Shortcode {
 					'loginNeeded' => __( 'A kedveléshez be kell jelentkezned.', 'pl-player' ),
 					'nowPlaying'  => __( 'Most játszik:', 'pl-player' ),
 					'popupBlocked' => __( 'A böngésző letiltotta a felugró ablakot. Engedélyezd az oldalnak, és próbáld újra.', 'pl-player' ),
+					'share'        => __( 'Megosztás', 'pl-player' ),
+					'linkCopied'   => __( 'A link a vágólapra került.', 'pl-player' ),
 				),
 			)
 		);
