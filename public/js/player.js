@@ -469,6 +469,7 @@
 				like: q( '[data-plp-hero-like]', root ),
 				likes: q( '[data-plp-hero-likes]', root ),
 				plays: q( '[data-plp-hero-plays]', root ),
+				marks: q( '[data-plp-marks-layer]', root ),
 				labels: q( '[data-plp-labels]', root ),
 				about: q( '[data-plp-about]', root ),
 				depth: q( '[data-plp-depth]', root ),
@@ -540,6 +541,7 @@
 			hero.about.hidden = '' === about;
 		}
 
+		paintMarks( item, hero );
 		syncHeroStats( item, hero );
 	}
 
@@ -599,6 +601,89 @@
 		} ).catch( function () {
 			hero.depth.hidden = true;
 		} );
+	}
+
+	/**
+	 * Draws the track's chapter marks onto the hero seek bar.
+	 *
+	 * A range input cannot hold children, so the ticks live in a sibling layer stretched
+	 * over the same width. They are decorative there — the clickable list is the one
+	 * under the row, which works without a steady hand.
+	 */
+	function paintMarks( item, hero ) {
+		if ( ! hero || ! hero.marks ) {
+			return;
+		}
+
+		hero.marks.textContent = '';
+
+		var markers = readMarkers( item );
+		var duration = parseFloat( item.getAttribute( 'data-duration' ) ) || 0;
+
+		if ( ! markers.length || duration <= 0 ) {
+			return;
+		}
+
+		markers.forEach( function ( marker ) {
+			if ( marker.t > duration ) {
+				return;
+			}
+
+			var tick = document.createElement( 'span' );
+
+			tick.className = 'plp-hero__mark';
+			tick.style.left = ( ( marker.t / duration ) * 100 ) + '%';
+			tick.title = marker.time + ( marker.label ? ' — ' + marker.label : '' );
+
+			hero.marks.appendChild( tick );
+		} );
+	}
+
+	function readMarkers( item ) {
+		var raw = item.getAttribute( 'data-markers' );
+
+		if ( ! raw ) {
+			return [];
+		}
+
+		try {
+			var parsed = JSON.parse( raw );
+
+			return Array.isArray( parsed ) ? parsed : [];
+		} catch ( error ) {
+			return [];
+		}
+	}
+
+	/**
+	 * Plays a track from a given second.
+	 */
+	function seekTo( item, list, seconds ) {
+		var wasCurrent = ( item === currentItem );
+
+		if ( ! wasCurrent ) {
+			select( item, list, true );
+		} else if ( audio.paused ) {
+			prepareEq();
+			audio.play().catch( function () {} );
+		}
+
+		var apply = function () {
+			if ( isFinite( audio.duration ) && seconds < audio.duration ) {
+				audio.currentTime = seconds;
+			}
+		};
+
+		if ( audio.readyState >= 1 ) {
+			apply();
+		} else {
+			var once = function () {
+				audio.removeEventListener( 'loadedmetadata', once );
+				apply();
+			};
+
+			audio.addEventListener( 'loadedmetadata', once );
+		}
 	}
 
 	/**
@@ -1154,6 +1239,7 @@
 		item.setAttribute( 'data-labels', ( track.labels || [] ).join( '|' ) );
 		item.setAttribute( 'data-about', track.description || '' );
 		item.setAttribute( 'data-url', track.permalink || '' );
+		item.setAttribute( 'data-markers', JSON.stringify( track.markers || [] ) );
 
 		var play = document.createElement( 'button' );
 		play.type = 'button';
@@ -1185,9 +1271,28 @@
 		var meta = document.createElement( 'span' );
 		meta.className = 'plp-track__meta';
 
-		var title = document.createElement( 'span' );
-		title.className = 'plp-track__title';
-		title.textContent = track.title;
+		var markers = track.markers || [];
+		var title;
+
+		if ( markers.length ) {
+			// A disclosure control, matching what the server renders for the same case.
+			title = document.createElement( 'button' );
+			title.type = 'button';
+			title.className = 'plp-track__title plp-track__title--toggle';
+			title.setAttribute( 'aria-expanded', 'false' );
+			title.setAttribute( 'data-plp-chapters-toggle', '' );
+			title.textContent = track.title;
+
+			var caret = document.createElement( 'span' );
+			caret.className = 'plp-track__caret';
+			caret.setAttribute( 'aria-hidden', 'true' );
+			title.appendChild( caret );
+		} else {
+			title = document.createElement( 'span' );
+			title.className = 'plp-track__title';
+			title.textContent = track.title;
+		}
+
 		meta.appendChild( title );
 
 		if ( track.artist ) {
@@ -1230,6 +1335,37 @@
 		}
 
 		item.appendChild( stats );
+
+		if ( markers.length ) {
+			var chapters = document.createElement( 'ol' );
+			chapters.className = 'plp-chapters';
+			chapters.setAttribute( 'data-plp-chapters', '' );
+			chapters.hidden = true;
+
+			markers.forEach( function ( marker ) {
+				var li = document.createElement( 'li' );
+				var jump = document.createElement( 'button' );
+
+				jump.type = 'button';
+				jump.className = 'plp-chapters__jump';
+				jump.setAttribute( 'data-plp-chapter', marker.t );
+
+				var time = document.createElement( 'span' );
+				time.className = 'plp-chapters__time';
+				time.textContent = marker.time || '';
+				jump.appendChild( time );
+
+				var label = document.createElement( 'span' );
+				label.className = 'plp-chapters__label';
+				label.textContent = marker.label || '';
+				jump.appendChild( label );
+
+				li.appendChild( jump );
+				chapters.appendChild( li );
+			} );
+
+			item.appendChild( chapters );
+		}
 
 		return item;
 	}
@@ -1368,6 +1504,36 @@
 
 				if ( currentItem ) {
 					shareTrack( currentItem, list );
+				}
+
+				return;
+			}
+
+			var toggle = event.target.closest( '[data-plp-chapters-toggle]' );
+
+			if ( toggle ) {
+				event.preventDefault();
+
+				var panel = q( '[data-plp-chapters]', toggle.closest( '.plp-track' ) );
+
+				if ( panel ) {
+					var open = panel.hidden;
+					panel.hidden = ! open;
+					toggle.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+				}
+
+				return;
+			}
+
+			var chapter = event.target.closest( '[data-plp-chapter]' );
+
+			if ( chapter ) {
+				event.preventDefault();
+
+				var owner = chapter.closest( '.plp-track' );
+
+				if ( owner ) {
+					seekTo( owner, list, parseFloat( chapter.getAttribute( 'data-plp-chapter' ) ) || 0 );
 				}
 
 				return;

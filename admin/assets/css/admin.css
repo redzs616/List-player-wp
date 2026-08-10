@@ -83,6 +83,154 @@
 	color: #646970;
 }
 
+/* --- Marker editor --- */
+
+.plp-marks__empty {
+	padding: 16px;
+	background: #f6f7f7;
+	border: 1px dashed #c3c4c7;
+	border-radius: 4px;
+	color: #646970;
+}
+
+.plp-marks__audio {
+	width: 100%;
+	max-width: 520px;
+	margin: 10px 0;
+}
+
+.plp-marks__bar {
+	position: relative;
+	height: 42px;
+	margin: 6px 0 4px;
+	background: #f0f0f1;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	cursor: crosshair;
+	touch-action: none;
+}
+
+.plp-marks__bar:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 2px;
+}
+
+.plp-marks__played {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 0;
+	height: 100%;
+	background: #e3ecf5;
+	border-radius: 3px 0 0 3px;
+	pointer-events: none;
+}
+
+.plp-marks__tick {
+	position: absolute;
+	top: -4px;
+	width: 12px;
+	height: 50px;
+	margin-left: -6px;
+	padding: 0;
+	background: none;
+	border: 0;
+	cursor: grab;
+}
+
+.plp-marks__tick::before {
+	content: "";
+	position: absolute;
+	top: 8px;
+	left: 5px;
+	width: 2px;
+	height: 34px;
+	background: #b32d2e;
+}
+
+.plp-marks__tick::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	left: 1px;
+	width: 10px;
+	height: 10px;
+	background: #b32d2e;
+	border-radius: 2px;
+}
+
+.plp-marks__tick:hover::before,
+.plp-marks__tick:hover::after {
+	background: #d63638;
+}
+
+.plp-marks__times {
+	display: flex;
+	justify-content: space-between;
+	max-width: 100%;
+	margin: 0 0 10px;
+	color: #646970;
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+}
+
+.plp-marks__actions {
+	margin: 10px 0;
+}
+
+.plp-marks__clear {
+	margin-left: 10px;
+	color: #b32d2e;
+}
+
+.plp-marks__table {
+	width: 100%;
+	max-width: 640px;
+	border-collapse: collapse;
+}
+
+.plp-marks__table[hidden] {
+	display: none;
+}
+
+.plp-marks__table th {
+	padding: 6px 10px 6px 0;
+	border-bottom: 1px solid #dcdcde;
+	font-size: 12px;
+	text-align: left;
+}
+
+.plp-marks__table td {
+	padding: 4px 10px 4px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.plp-marks__time {
+	width: 84px;
+	font-variant-numeric: tabular-nums;
+	text-align: center;
+}
+
+.plp-marks__label {
+	width: 100%;
+}
+
+.plp-marks__jump {
+	margin-right: 10px;
+}
+
+.plp-marks__remove {
+	color: #b32d2e;
+}
+
+.plp-marks__none[hidden] {
+	display: none;
+}
+
+.plp-marks__none {
+	color: #646970;
+}
+
 /* --- Track list columns --- */
 
 .column-plp_cover {

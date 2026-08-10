@@ -505,7 +505,8 @@ class PLP_Source {
 			'initial'        => self::cover_initial( get_the_title( $post ) ),
 			// Measured, not guessed — see PLP_Analysis.
 			'labels'         => PLP_Analysis::labels( $post->ID ),
-			'description'    => wp_trim_words( wp_strip_all_tags( (string) $post->post_content ), 42, '…' ),
+			'description'    => self::excerpt( $post ),
+			'markers'        => PLP_Markers::for_display( $post->ID ),
 			'categories'     => self::term_list( $post ),
 		);
 
@@ -552,6 +553,39 @@ class PLP_Source {
 		return function_exists( 'mb_strtoupper' )
 			? mb_strtoupper( mb_substr( $title, 0, 1 ) )
 			: strtoupper( substr( $title, 0, 1 ) );
+	}
+
+	/**
+	 * A short, safe description for the player.
+	 *
+	 * Shortcodes have to go before the tags do. A podcast episode's content is often
+	 * nothing but `[audio mp3="…"]`, and stripping only HTML left that markup sitting in
+	 * the panel as visible text.
+	 *
+	 * @param WP_Post $post Post object.
+	 * @return string
+	 */
+	private static function excerpt( $post ) {
+		$text = (string) $post->post_content;
+
+		// An explicit excerpt is the author's own summary, so it wins.
+		if ( '' !== trim( (string) $post->post_excerpt ) ) {
+			$text = (string) $post->post_excerpt;
+		}
+
+		$text = strip_shortcodes( $text );
+		$text = wp_strip_all_tags( $text );
+
+		// Anything left in square brackets is a shortcode this install no longer
+		// registers; it is markup either way, not prose.
+		$text = preg_replace( '/\[[^\]]*\]/', '', $text );
+		$text = trim( (string) preg_replace( '/\s+/', ' ', (string) $text ) );
+
+		if ( '' === $text ) {
+			return '';
+		}
+
+		return wp_trim_words( $text, 42, '…' );
 	}
 
 	/**

@@ -20,10 +20,12 @@
 	--plp-columns: 3;
 
 	/* Equalizer ladder, read by the canvas. Green is the comfortable range, amber is
-	   getting loud, red is the peak — the convention every mixer already uses. */
-	--plp-eq-low: #35d07f;
-	--plp-eq-mid: #f5c542;
-	--plp-eq-high: #e8453c;
+	   getting loud, red is the peak — the convention every mixer already uses.
+	   Saturated on purpose: seen through the canvas opacity and over a dark panel, a
+	   muted green reads as grey. */
+	--plp-eq-low: #1fe06b;
+	--plp-eq-mid: #ffcf1a;
+	--plp-eq-high: #ff3b2f;
 
 	color: inherit;
 	font-size: 16px;
@@ -348,6 +350,34 @@
 	opacity: 0.65;
 	font-size: 0.8em;
 	font-variant-numeric: tabular-nums;
+}
+
+/* Wrapper so the chapter ticks can be positioned over the same width as the range. */
+.plp-hero__track {
+	position: relative;
+	flex: 1 1 auto;
+	display: block;
+}
+
+.plp-hero__marks {
+	position: absolute;
+	top: 50%;
+	right: 0;
+	left: 0;
+	height: 14px;
+	pointer-events: none;
+	transform: translateY( -50% );
+}
+
+.plp-hero__mark {
+	position: absolute;
+	top: 0;
+	width: 2px;
+	height: 14px;
+	margin-left: -1px;
+	background: #fff;
+	border-radius: 1px;
+	opacity: 0.75;
 }
 
 .plp-hero__seek {
@@ -941,6 +971,94 @@
 	font-weight: 600;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+
+/* The title becomes a disclosure button when the recording has chapters. Styled to
+   look like the plain title, because it still reads as the name first. */
+
+.plp-track__title--toggle {
+	display: inline-flex;
+	gap: 6px;
+	align-items: center;
+	width: 100%;
+	padding: 0;
+	background: none;
+	border: 0;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	text-align: left;
+	cursor: pointer;
+}
+
+.plp-track__title--toggle:hover {
+	color: var( --plp-accent );
+}
+
+.plp-track__caret {
+	flex: 0 0 auto;
+	width: 0;
+	height: 0;
+	border-top: 5px solid currentColor;
+	border-right: 4px solid transparent;
+	border-left: 4px solid transparent;
+	opacity: 0.6;
+	transition: transform 140ms ease;
+}
+
+.plp-track__title--toggle[aria-expanded="true"] .plp-track__caret {
+	transform: rotate( 180deg );
+}
+
+/* --- Chapter list under a row --- */
+
+.plp-chapters {
+	flex: 1 1 100%;
+	margin: 8px 0 2px;
+	padding: 8px 0 0;
+	border-top: 1px solid var( --plp-border );
+	list-style: none;
+}
+
+.plp-chapters[hidden] {
+	display: none;
+}
+
+.plp-chapters li + li {
+	margin-top: 1px;
+}
+
+.plp-chapters__jump {
+	display: flex;
+	gap: 10px;
+	align-items: baseline;
+	width: 100%;
+	padding: 5px 8px;
+	background: none;
+	border: 0;
+	border-radius: 6px;
+	color: inherit;
+	font: inherit;
+	font-size: 0.88em;
+	text-align: left;
+	cursor: pointer;
+}
+
+.plp-chapters__jump:hover,
+.plp-chapters__jump:focus-visible {
+	background: var( --plp-surface-hover );
+}
+
+.plp-chapters__time {
+	flex: 0 0 auto;
+	min-width: 52px;
+	color: var( --plp-accent );
+	font-variant-numeric: tabular-nums;
+}
+
+.plp-chapters__label {
+	flex: 1 1 auto;
+	opacity: 0.85;
 }
 
 .plp-track__artist {

@@ -53,7 +53,35 @@ class PLP_Admin {
 		}
 
 		$screen = get_current_screen();
-		if ( ! $screen || PLP_Post_Types::TRACK !== $screen->post_type ) {
+
+		if ( ! $screen ) {
+			return;
+		}
+
+		// The marker editor appears on every playable post type — podcast episodes get
+		// chapters just as much as tracks do.
+		if ( in_array( $screen->post_type, PLP_Source::post_types(), true ) ) {
+			wp_enqueue_style( 'plp-admin', PLP_URL . 'admin/assets/css/admin.css', array(), PLP_VERSION );
+			wp_enqueue_script( 'plp-markers', PLP_URL . 'admin/assets/js/markers.js', array(), PLP_VERSION, true );
+
+			wp_localize_script(
+				'plp-markers',
+				'PLPMarkers',
+				array(
+					'max'  => PLP_Markers::MAX,
+					'i18n' => array(
+						'jump'             => __( 'Odaugrás', 'pl-player' ),
+						'remove'           => __( 'Törlés', 'pl-player' ),
+						'labelPlaceholder' => __( 'Mi szól itt?', 'pl-player' ),
+						'confirmClear'     => __( 'Biztosan törlöd az összes jelölőt erről a felvételről?', 'pl-player' ),
+						/* translators: %d: maximum number of markers. */
+						'tooMany'          => sprintf( __( 'Egy felvételen legfeljebb %d jelölő lehet.', 'pl-player' ), PLP_Markers::MAX ),
+					),
+				)
+			);
+		}
+
+		if ( PLP_Post_Types::TRACK !== $screen->post_type ) {
 			return;
 		}
 

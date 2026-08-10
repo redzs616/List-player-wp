@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Lejátszási Lista Player
  * Description:       Kategóriákba rendezett zenelejátszó, nyilvános lejátszás- és like-statisztikával.
- * Version:           1.5.0
+ * Version:           1.6.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PLP_VERSION', '1.5.0' );
+define( 'PLP_VERSION', '1.6.0' );
 define( 'PLP_DB_VERSION', '2' );
 define( 'PLP_FILE', __FILE__ );
 define( 'PLP_PATH', plugin_dir_path( __FILE__ ) );
@@ -28,6 +28,7 @@ require_once PLP_PATH . 'includes/class-plp-meta.php';
 require_once PLP_PATH . 'includes/class-plp-playlist.php';
 require_once PLP_PATH . 'includes/class-plp-analysis.php';
 require_once PLP_PATH . 'includes/class-plp-duplicates.php';
+require_once PLP_PATH . 'includes/class-plp-markers.php';
 require_once PLP_PATH . 'includes/class-plp-importer.php';
 require_once PLP_PATH . 'includes/class-plp-source.php';
 require_once PLP_PATH . 'includes/class-plp-visitor.php';
@@ -56,6 +57,7 @@ function plp_bootstrap() {
 	PLP_Meta::init();
 	PLP_Playlist::init();
 	PLP_Analysis::init();
+	PLP_Markers::init();
 	PLP_Stats::init();
 	PLP_Rest::init();
 	PLP_Renderer::init();

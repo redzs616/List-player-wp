@@ -343,8 +343,15 @@ class PLP_Renderer {
 
 					<div class="plp-hero__progress">
 						<span class="plp-hero__time" data-plp-current>0:00</span>
-						<input type="range" class="plp-hero__seek" data-plp-seek min="0" max="1000" value="0" step="1"
-							aria-label="<?php esc_attr_e( 'Tekerés', 'pl-player' ); ?>" />
+
+						<span class="plp-hero__track">
+							<input type="range" class="plp-hero__seek" data-plp-seek min="0" max="1000" value="0" step="1"
+								aria-label="<?php esc_attr_e( 'Tekerés', 'pl-player' ); ?>" />
+							<?php // Ticks cannot live inside a range input, so they sit in a
+								// sibling layer aligned to the same track. ?>
+							<span class="plp-hero__marks" data-plp-marks-layer aria-hidden="true"></span>
+						</span>
+
 						<span class="plp-hero__time" data-plp-total>
 							<?php echo esc_html( $first ? $first['duration_human'] : '0:00' ); ?>
 						</span>
@@ -604,6 +611,7 @@ class PLP_Renderer {
 			data-labels="<?php echo esc_attr( implode( '|', $track['labels'] ) ); ?>"
 			data-about="<?php echo esc_attr( $track['description'] ); ?>"
 			data-url="<?php echo esc_url( $track['permalink'] ); ?>"
+			data-markers="<?php echo esc_attr( (string) wp_json_encode( $track['markers'] ) ); ?>"
 			data-duration="<?php echo esc_attr( (string) $track['duration'] ); ?>">
 
 			<button type="button" class="plp-track__play" aria-label="<?php
@@ -623,7 +631,18 @@ class PLP_Renderer {
 			</span>
 
 			<span class="plp-track__meta">
-				<span class="plp-track__title"><?php echo esc_html( $track['title'] ); ?></span>
+				<?php if ( $track['markers'] ) : ?>
+					<?php // A disclosure button, because that is what it is: the title opens
+						// the chapter list underneath. ?>
+					<button type="button" class="plp-track__title plp-track__title--toggle"
+						aria-expanded="false" data-plp-chapters-toggle>
+						<?php echo esc_html( $track['title'] ); ?>
+						<span class="plp-track__caret" aria-hidden="true"></span>
+					</button>
+				<?php else : ?>
+					<span class="plp-track__title"><?php echo esc_html( $track['title'] ); ?></span>
+				<?php endif; ?>
+
 				<?php if ( $track['artist'] ) : ?>
 					<span class="plp-track__artist"><?php echo esc_html( $track['artist'] ); ?></span>
 				<?php endif; ?>
@@ -648,6 +667,21 @@ class PLP_Renderer {
 					</span>
 				<?php endif; ?>
 			</span>
+
+			<?php if ( $track['markers'] ) : ?>
+				<ol class="plp-chapters" data-plp-chapters hidden>
+					<?php foreach ( $track['markers'] as $marker ) : ?>
+						<li>
+							<?php // Not data-plp-seek: that name already belongs to the hero
+								// range input, and a shared selector would collide. ?>
+							<button type="button" class="plp-chapters__jump" data-plp-chapter="<?php echo esc_attr( (string) $marker['t'] ); ?>">
+								<span class="plp-chapters__time"><?php echo esc_html( $marker['time'] ); ?></span>
+								<span class="plp-chapters__label"><?php echo esc_html( $marker['label'] ); ?></span>
+							</button>
+						</li>
+					<?php endforeach; ?>
+				</ol>
+			<?php endif; ?>
 		</li>
 		<?php
 	}
