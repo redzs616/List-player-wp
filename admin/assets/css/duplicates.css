@@ -1,0 +1,114 @@
+/**
+ * Duplicate report screen.
+ *
+ * @package PL_Player
+ */
+
+.plp-dupes__intro {
+	max-width: 820px;
+}
+
+.plp-dupes h2 {
+	margin: 34px 0 4px;
+}
+
+.plp-dupes__note {
+	max-width: 820px;
+	margin: 0 0 12px;
+	color: #646970;
+}
+
+/* --- Summary cards --- */
+
+.plp-cards {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 170px, 1fr ) );
+	gap: 12px;
+	max-width: 620px;
+	margin: 18px 0;
+}
+
+.plp-card {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 14px 16px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+}
+
+.plp-card__label {
+	color: #646970;
+	font-size: 12px;
+}
+
+.plp-card__value {
+	font-size: 26px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.1;
+}
+
+/* --- Group tables --- */
+
+.plp-dupes__table {
+	max-width: 1100px;
+	margin: 0 0 22px;
+}
+
+.plp-dupes__table td,
+.plp-dupes__table th {
+	vertical-align: middle;
+}
+
+.plp-dupes__table .plp-num {
+	width: 90px;
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.plp-dupes__keep {
+	background: #f0f7ed !important;
+}
+
+.plp-dupes__badge {
+	display: inline-block;
+	padding: 1px 8px;
+	background: #e3f2dd;
+	border-radius: 10px;
+	color: #2c5c1d;
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.plp-dupes__file {
+	color: #8b929c;
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 11.5px;
+	word-break: break-all;
+}
+
+.plp-dupes__trash {
+	color: #b32d2e;
+}
+
+.plp-dupes__muted {
+	color: #a7aaad;
+}
+
+/* --- Advice --- */
+
+.plp-dupes__advice {
+	max-width: 820px;
+	margin: 40px 0 0;
+	padding: 4px 20px 16px;
+	background: #f6f7f7;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+}
+
+.plp-dupes__advice h2 {
+	margin-top: 16px;
+	font-size: 15px;
+}

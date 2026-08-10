@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Lejátszási Lista Player
  * Description:       Kategóriákba rendezett zenelejátszó, nyilvános lejátszás- és like-statisztikával.
- * Version:           1.4.0
+ * Version:           1.5.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PLP_VERSION', '1.4.0' );
+define( 'PLP_VERSION', '1.5.0' );
 define( 'PLP_DB_VERSION', '2' );
 define( 'PLP_FILE', __FILE__ );
 define( 'PLP_PATH', plugin_dir_path( __FILE__ ) );
@@ -27,6 +27,7 @@ require_once PLP_PATH . 'includes/class-plp-post-types.php';
 require_once PLP_PATH . 'includes/class-plp-meta.php';
 require_once PLP_PATH . 'includes/class-plp-playlist.php';
 require_once PLP_PATH . 'includes/class-plp-analysis.php';
+require_once PLP_PATH . 'includes/class-plp-duplicates.php';
 require_once PLP_PATH . 'includes/class-plp-importer.php';
 require_once PLP_PATH . 'includes/class-plp-source.php';
 require_once PLP_PATH . 'includes/class-plp-visitor.php';
@@ -77,12 +78,14 @@ function plp_bootstrap() {
 		require_once PLP_PATH . 'admin/class-plp-settings-page.php';
 		require_once PLP_PATH . 'admin/class-plp-stats-page.php';
 		require_once PLP_PATH . 'admin/class-plp-analyze-page.php';
+		require_once PLP_PATH . 'admin/class-plp-duplicates-page.php';
 
 		PLP_Admin::init();
 		PLP_Import_Page::init();
 		PLP_Settings_Page::init();
 		PLP_Stats_Page::init();
 		PLP_Analyze_Page::init();
+		PLP_Duplicates_Page::init();
 	}
 
 	PLP_Activator::maybe_upgrade();
