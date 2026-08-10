@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.6.0-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.7.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -65,6 +65,7 @@ A bővítmény **két** shortcode-ot ad. Bárhová beírhatók, ahol a WordPress
 | Shortcode | Mit tesz |
 |---|---|
 | `[playlist_player]` | A lejátszó: listázza és lejátssza a zenét |
+| `[playlist_index]` | A lejátszási listák oldala: felsorolja őket, és rákattintva megnyitja |
 | `[playlist_stats]` | Nyilvános toplisták és forgalmi grafikon, önálló statisztika oldalhoz |
 
 ### Kész példák, másolásra
@@ -182,6 +183,38 @@ számít. Ha egy szám közben törlődik vagy elveszti a hangfájlját, pirossa
 a listában — nem csendben tűnik el, hogy lásd, hol van lyuk.
 
 A Divi modulban legördülőből választható, a benne lévő számok darabszámával.
+
+### Listák készítése hallgatás közben
+
+Ha **be vagy jelentkezve** szerkesztői joggal, minden soron megjelenik egy **+** gomb.
+Rákattintva egy panel nyílik, ahol a számot beteheted egy meglévő listába, vagy
+**helyben létrehozhatsz újat** — csak írd be a nevét. Ami már benne van egy listában, az
+kiszürkül, tehát nem tudod kétszer betenni.
+
+A gomb és a panel **nem is kerül bele az oldalba** kijelentkezett látogatónál. Egy
+nyilvános felület, ami bárkinek engedi bejegyzést létrehozni az oldalon, nyitott kapu
+lenne — ezért nem kapcsoló kérdése, hanem az sem generálódik le.
+
+### A listák oldala
+
+```
+[playlist_index columns="3" layout="hero"]
+```
+
+Ez felsorolja a lejátszási listákat borítóval, a számok darabszámával és a teljes
+hosszal. Egy listára kattintva **ugyanaz az oldal** megnyitja azt a listát a
+lejátszóban, fölötte egy „← Vissza a listákhoz" linkkel.
+
+| Paraméter | Alapérték | Leírás |
+|---|---|---|
+| `columns` | `3` | Oszlopszám a listák rácsában, 1–6 |
+| `layout` | `hero` | Milyen elrendezésben nyíljon meg a választott lista |
+| `accent` | — | Kiemelő szín |
+| `limit` | `100` | Legfeljebb ennyi lista jelenik meg |
+
+A választott lista **valódi URL-t kap** (`?plp_list=slug`), nem helyben cserélődik. Így
+működik a vissza gomb, egy lista linkje megosztható, és minden állapot külön
+gyorsítótárazódik ahelyett, hogy minden látogató újra lekérné ugyanazt.
 
 ## Elemzés és generált borítók
 

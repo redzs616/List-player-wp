@@ -144,6 +144,58 @@ class PLP_Rest {
 			)
 		);
 
+		// Playlist writing is a privileged action, so unlike the play and like routes
+		// these demand a logged-in user with the right capability. A nonce is fine here
+		// precisely because admin pages are not page-cached.
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/playlists',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( __CLASS__, 'get_playlists' ),
+					'permission_callback' => array( __CLASS__, 'can_edit' ),
+					'args'                => array(
+						'track' => array(
+							'type'    => 'integer',
+							'default' => 0,
+						),
+					),
+				),
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( __CLASS__, 'post_playlist' ),
+					'permission_callback' => array( __CLASS__, 'can_publish' ),
+					'args'                => array(
+						'title' => array(
+							'type'     => 'string',
+							'required' => true,
+						),
+						'track' => array(
+							'type'    => 'integer',
+							'default' => 0,
+						),
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/playlists/(?P<id>\d+)/add',
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( __CLASS__, 'post_playlist_add' ),
+				'permission_callback' => array( __CLASS__, 'can_edit' ),
+				'args'                => array(
+					'track' => array(
+						'type'     => 'integer',
+						'required' => true,
+					),
+				),
+			)
+		);
+
 		register_rest_route(
 			self::NAMESPACE_V1,
 			'/stats/public',
@@ -505,6 +557,84 @@ class PLP_Rest {
 		}
 
 		return $out;
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Playlists
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Whether the caller may edit content at all.
+	 *
+	 * @return bool
+	 */
+	public static function can_edit() {
+		return current_user_can( 'edit_posts' );
+	}
+
+	/**
+	 * Whether the caller may create a playlist.
+	 *
+	 * @return bool
+	 */
+	public static function can_publish() {
+		return current_user_can( 'publish_posts' );
+	}
+
+	/**
+	 * The playlists the caller can add to, flagged for whether this track is in them.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response
+	 */
+	public static function get_playlists( WP_REST_Request $request ) {
+		return self::no_store(
+			rest_ensure_response(
+				array( 'playlists' => PLP_Playlist::editable_for( absint( $request->get_param( 'track' ) ) ) )
+			)
+		);
+	}
+
+	/**
+	 * Creates a playlist, optionally seeded with one track.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function post_playlist( WP_REST_Request $request ) {
+		$result = PLP_Playlist::create(
+			(string) $request->get_param( 'title' ),
+			absint( $request->get_param( 'track' ) )
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$result->add_data( array( 'status' => 400 ) );
+
+			return $result;
+		}
+
+		return self::no_store( rest_ensure_response( $result ) );
+	}
+
+	/**
+	 * Adds a track to an existing playlist.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function post_playlist_add( WP_REST_Request $request ) {
+		$result = PLP_Playlist::add_track(
+			absint( $request['id'] ),
+			absint( $request->get_param( 'track' ) )
+		);
+
+		if ( is_wp_error( $result ) ) {
+			$result->add_data( array( 'status' => 400 ) );
+
+			return $result;
+		}
+
+		return self::no_store( rest_ensure_response( $result ) );
 	}
 
 	/* ---------------------------------------------------------------------

@@ -14,6 +14,7 @@ class PLP_Shortcode {
 
 	const TAG       = 'playlist_player';
 	const TAG_STATS = 'playlist_stats';
+	const TAG_INDEX = 'playlist_index';
 
 	/**
 	 * Hooks the shortcodes.
@@ -21,6 +22,7 @@ class PLP_Shortcode {
 	public static function init() {
 		add_shortcode( self::TAG, array( __CLASS__, 'render' ) );
 		add_shortcode( self::TAG_STATS, array( __CLASS__, 'render_stats' ) );
+		add_shortcode( self::TAG_INDEX, array( __CLASS__, 'render_index' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 	}
 
@@ -83,6 +85,15 @@ class PLP_Shortcode {
 					'popupBlocked' => __( 'A böngésző letiltotta a felugró ablakot. Engedélyezd az oldalnak, és próbáld újra.', 'pl-player' ),
 					'share'        => __( 'Megosztás', 'pl-player' ),
 					'linkCopied'   => __( 'A link a vágólapra került.', 'pl-player' ),
+					'addToList'    => __( 'Hozzáadás lejátszási listához', 'pl-player' ),
+					'noPlaylists'  => __( 'Még nincs lejátszási lista. Írj be egy nevet alább.', 'pl-player' ),
+					'alreadyIn'    => __( 'már benne van', 'pl-player' ),
+					/* translators: %d: number of tracks in the playlist. */
+					'trackCount'   => __( '%d szám', 'pl-player' ),
+					'saving'       => __( 'Mentés…', 'pl-player' ),
+					'addedToList'  => __( 'Hozzáadva.', 'pl-player' ),
+					'listCreated'  => __( 'A lista elkészült, és a szám bekerült.', 'pl-player' ),
+					'needName'     => __( 'Adj nevet a listának.', 'pl-player' ),
 				),
 			)
 		);
@@ -115,5 +126,20 @@ class PLP_Shortcode {
 		wp_enqueue_style( 'plp-player' );
 
 		return PLP_Renderer::render_stats( $atts );
+	}
+
+	/**
+	 * Renders the playlist index, or the chosen playlist.
+	 *
+	 * The script is needed either way: the chosen state contains a real player.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public static function render_index( $atts ) {
+		wp_enqueue_style( 'plp-player' );
+		wp_enqueue_script( 'plp-player' );
+
+		return PLP_Renderer::render_index( $atts );
 	}
 }

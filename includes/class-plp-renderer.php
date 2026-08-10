@@ -249,6 +249,29 @@ class PLP_Renderer {
 
 			<div class="plp-status" role="status" aria-live="polite"></div>
 
+			<?php if ( current_user_can( 'edit_posts' ) ) : ?>
+				<?php // One panel per player, reused by whichever row asked for it. ?>
+				<div class="plp-picker" data-plp-picker hidden>
+					<p class="plp-picker__head">
+						<strong data-plp-picker-track></strong>
+						<button type="button" class="plp-picker__close" data-plp-picker-close
+							aria-label="<?php esc_attr_e( 'Bezárás', 'pl-player' ); ?>">&times;</button>
+					</p>
+
+					<ul class="plp-picker__list" data-plp-picker-list></ul>
+
+					<p class="plp-picker__new">
+						<input type="text" data-plp-picker-name
+							placeholder="<?php esc_attr_e( 'Új lista neve…', 'pl-player' ); ?>" />
+						<button type="button" class="plp-picker__create" data-plp-picker-create>
+							<?php esc_html_e( 'Létrehozás', 'pl-player' ); ?>
+						</button>
+					</p>
+
+					<p class="plp-picker__note" data-plp-picker-note></p>
+				</div>
+			<?php endif; ?>
+
 			<ol class="plp-list plp-list--<?php echo esc_attr( $config['layout'] ); ?>"
 				style="--plp-columns:<?php echo esc_attr( (string) $config['columns'] ); ?>">
 				<?php
@@ -476,6 +499,128 @@ class PLP_Renderer {
 	}
 
 	/**
+	 * Renders the playlist index, or the chosen playlist.
+	 *
+	 * One shortcode, two states, decided by a query argument. Deliberately a real URL
+	 * rather than an in-place swap: the back button works, a chosen list can be linked
+	 * and shared, and each state caches separately instead of forcing every visitor to
+	 * fetch the same thing again.
+	 *
+	 * @param array $atts Shortcode attributes.
+	 * @return string
+	 */
+	public static function render_index( $atts ) {
+		$atts = shortcode_atts(
+			array(
+				'columns' => 3,
+				'layout'  => 'hero',
+				'accent'  => '',
+				'limit'   => 100,
+			),
+			is_array( $atts ) ? $atts : array(),
+			'playlist_index'
+		);
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$chosen = isset( $_GET['plp_list'] ) ? sanitize_title( wp_unslash( $_GET['plp_list'] ) ) : '';
+		$accent = sanitize_hex_color( (string) $atts['accent'] );
+
+		if ( '' !== $chosen && PLP_Playlist::resolve( $chosen ) ) {
+			return self::render_chosen( $chosen, $atts, $accent );
+		}
+
+		$playlists = PLP_Playlist::all( absint( $atts['limit'] ) );
+		$style     = $accent ? 'style="--plp-accent:' . esc_attr( $accent ) . '"' : '';
+
+		ob_start();
+		?>
+		<div class="plp plp-index" <?php echo $style; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
+			<?php if ( ! $playlists ) : ?>
+				<p class="plp-empty">
+					<?php esc_html_e( 'Még nincs lejátszási lista.', 'pl-player' ); ?>
+				</p>
+			<?php else : ?>
+				<ul class="plp-index__grid" style="--plp-columns:<?php echo esc_attr( (string) max( 1, min( 6, absint( $atts['columns'] ) ) ) ); ?>">
+					<?php foreach ( $playlists as $list ) : ?>
+						<li class="plp-index__item">
+							<a class="plp-index__link" href="<?php echo esc_url( add_query_arg( 'plp_list', $list['slug'], get_permalink() ) ); ?>">
+								<span class="plp-index__cover" style="--plp-hue:<?php echo esc_attr( (string) $list['hue'] ); ?>">
+									<?php if ( $list['cover'] ) : ?>
+										<img src="<?php echo esc_url( $list['cover'] ); ?>" alt="" loading="lazy" decoding="async" />
+									<?php else : ?>
+										<span aria-hidden="true"><?php echo esc_html( $list['initial'] ); ?></span>
+									<?php endif; ?>
+								</span>
+
+								<span class="plp-index__body">
+									<span class="plp-index__title"><?php echo esc_html( $list['title'] ); ?></span>
+									<span class="plp-index__meta">
+										<?php
+										printf(
+											/* translators: 1: number of tracks, 2: total length. */
+											esc_html__( '%1$s szám · %2$s', 'pl-player' ),
+											esc_html( number_format_i18n( $list['count'] ) ),
+											esc_html( $list['duration'] )
+										);
+										?>
+									</span>
+									<?php if ( '' !== $list['excerpt'] ) : ?>
+										<span class="plp-index__about"><?php echo esc_html( $list['excerpt'] ); ?></span>
+									<?php endif; ?>
+								</span>
+							</a>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
+		</div>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Renders one playlist with a way back to the index.
+	 *
+	 * @param string $slug   Playlist slug.
+	 * @param array  $atts   Index attributes.
+	 * @param string $accent Accent colour.
+	 * @return string
+	 */
+	private static function render_chosen( $slug, array $atts, $accent ) {
+		$playlist_id = PLP_Playlist::resolve( $slug );
+
+		ob_start();
+		?>
+		<div class="plp-chosen-list">
+			<p class="plp-chosen-list__back">
+				<a href="<?php echo esc_url( remove_query_arg( 'plp_list', get_permalink() ) ); ?>">
+					<?php esc_html_e( '← Vissza a listákhoz', 'pl-player' ); ?>
+				</a>
+			</p>
+
+			<h2 class="plp-chosen-list__title"><?php echo esc_html( get_the_title( $playlist_id ) ); ?></h2>
+
+			<?php
+			echo self::render( // phpcs:ignore WordPress.Security.EscapeOutput
+				array(
+					'playlist' => (string) $playlist_id,
+					'layout'   => $atts['layout'],
+					'columns'  => $atts['columns'],
+					'nav'      => 'no',
+					'sort'     => 'no',
+					'accent'   => $accent,
+					'limit'    => 100,
+				)
+			);
+			?>
+		</div>
+		<?php
+
+		return (string) ob_get_clean();
+	}
+
+	/**
 	 * Renders the public traffic trend as a bar chart.
 	 *
 	 * @param array $series Daily series.
@@ -659,6 +804,16 @@ class PLP_Renderer {
 				<button type="button" class="plp-share" aria-label="<?php esc_attr_e( 'Megosztás', 'pl-player' ); ?>">
 					<span class="plp-icon plp-icon--share" aria-hidden="true"></span>
 				</button>
+
+				<?php // Editors only. A public control that creates posts would be an open
+					// door, so the markup is not even printed for visitors. ?>
+				<?php if ( current_user_can( 'edit_posts' ) ) : ?>
+					<button type="button" class="plp-addto" data-plp-addto
+						aria-label="<?php esc_attr_e( 'Hozzáadás lejátszási listához', 'pl-player' ); ?>"
+						title="<?php esc_attr_e( 'Hozzáadás lejátszási listához', 'pl-player' ); ?>">
+						<span class="plp-icon plp-icon--plus" aria-hidden="true"></span>
+					</button>
+				<?php endif; ?>
 
 				<?php if ( $show_stats ) : ?>
 					<span class="plp-plays" title="<?php esc_attr_e( 'Lejátszások', 'pl-player' ); ?>">

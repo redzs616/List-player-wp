@@ -72,11 +72,18 @@
 			headers['X-WP-Nonce'] = PLPlayer.nonce;
 		}
 
-		return fetch( endpoint( path, params ), {
+		var init = {
 			method: options.method || 'GET',
 			headers: headers,
 			credentials: 'same-origin'
-		} ).then( function ( response ) {
+		};
+
+		if ( options.body ) {
+			headers['Content-Type'] = 'application/json';
+			init.body = JSON.stringify( options.body );
+		}
+
+		return fetch( endpoint( path, params ), init ).then( function ( response ) {
 			return response.text().then( function ( text ) {
 				var data = null;
 
@@ -235,6 +242,162 @@
 			} );
 		} ).catch( function () {
 			// Counters are decoration: a failure here must not break playback.
+		} );
+	}
+
+	/* ------------------------------------------------------------------
+	 * Add to playlist — editors only
+	 *
+	 * The markup only exists for users who may edit, so everything here is dead code
+	 * for a visitor. These calls do send the nonce: creating and modifying posts is
+	 * privileged, and unlike the play and like routes these pages are never cached.
+	 * --------------------------------------------------------------- */
+
+	var pickerTrack = null;
+
+	function pickerOf( list ) {
+		return q( '[data-plp-picker]', list );
+	}
+
+	function pickerNote( picker, text ) {
+		var note = q( '[data-plp-picker-note]', picker );
+
+		if ( note ) {
+			note.textContent = text || '';
+		}
+	}
+
+	function renderPicker( picker, playlists ) {
+		var host = q( '[data-plp-picker-list]', picker );
+
+		host.textContent = '';
+
+		if ( ! playlists.length ) {
+			var empty = document.createElement( 'li' );
+			empty.className = 'plp-picker__empty';
+			empty.textContent = PLPlayer.i18n.noPlaylists;
+			host.appendChild( empty );
+
+			return;
+		}
+
+		playlists.forEach( function ( list ) {
+			var li = document.createElement( 'li' );
+			var button = document.createElement( 'button' );
+
+			button.type = 'button';
+			button.className = 'plp-picker__pick';
+			button.dataset.playlist = list.id;
+			button.disabled = !! list.has;
+
+			var name = document.createElement( 'span' );
+			name.className = 'plp-picker__name';
+			name.textContent = list.title;
+			button.appendChild( name );
+
+			var state = document.createElement( 'span' );
+			state.className = 'plp-picker__state';
+			state.textContent = list.has
+				? PLPlayer.i18n.alreadyIn
+				: PLPlayer.i18n.trackCount.replace( '%d', list.count );
+			button.appendChild( state );
+
+			li.appendChild( button );
+			host.appendChild( li );
+		} );
+	}
+
+	function openPicker( item, list ) {
+		var picker = pickerOf( list );
+
+		if ( ! picker ) {
+			return;
+		}
+
+		pickerTrack = item;
+		picker.hidden = false;
+		pickerNote( picker, '' );
+
+		var label = q( '[data-plp-picker-track]', picker );
+
+		if ( label ) {
+			label.textContent = item.getAttribute( 'data-title' ) || '';
+		}
+
+		q( '[data-plp-picker-list]', picker ).textContent = '';
+		pickerNote( picker, PLPlayer.i18n.loading );
+
+		request( '/playlists', { track: item.getAttribute( 'data-id' ) } ).then( function ( data ) {
+			pickerNote( picker, '' );
+			renderPicker( picker, data.playlists || [] );
+		} ).catch( function ( error ) {
+			pickerNote( picker, ( error && error.message ) || PLPlayer.i18n.error );
+		} );
+	}
+
+	function closePicker( list ) {
+		var picker = pickerOf( list );
+
+		if ( picker ) {
+			picker.hidden = true;
+		}
+
+		pickerTrack = null;
+	}
+
+	function addToPlaylist( playlistId, list ) {
+		if ( ! pickerTrack ) {
+			return;
+		}
+
+		var picker = pickerOf( list );
+
+		pickerNote( picker, PLPlayer.i18n.saving );
+
+		request( '/playlists/' + playlistId + '/add', null, {
+			method: 'POST',
+			body: { track: parseInt( pickerTrack.getAttribute( 'data-id' ), 10 ) }
+		} ).then( function () {
+			pickerNote( picker, PLPlayer.i18n.addedToList );
+
+			return request( '/playlists', { track: pickerTrack.getAttribute( 'data-id' ) } );
+		} ).then( function ( data ) {
+			renderPicker( picker, data.playlists || [] );
+		} ).catch( function ( error ) {
+			pickerNote( picker, ( error && error.message ) || PLPlayer.i18n.error );
+		} );
+	}
+
+	function createPlaylist( list ) {
+		var picker = pickerOf( list );
+		var input = q( '[data-plp-picker-name]', picker );
+		var title = input ? input.value.trim() : '';
+
+		if ( '' === title ) {
+			pickerNote( picker, PLPlayer.i18n.needName );
+
+			return;
+		}
+
+		pickerNote( picker, PLPlayer.i18n.saving );
+
+		request( '/playlists', null, {
+			method: 'POST',
+			body: {
+				title: title,
+				track: pickerTrack ? parseInt( pickerTrack.getAttribute( 'data-id' ), 10 ) : 0
+			}
+		} ).then( function () {
+			input.value = '';
+			pickerNote( picker, PLPlayer.i18n.listCreated );
+
+			return request( '/playlists', {
+				track: pickerTrack ? pickerTrack.getAttribute( 'data-id' ) : 0
+			} );
+		} ).then( function ( data ) {
+			renderPicker( picker, data.playlists || [] );
+		} ).catch( function ( error ) {
+			pickerNote( picker, ( error && error.message ) || PLPlayer.i18n.error );
 		} );
 	}
 
@@ -1327,6 +1490,19 @@
 		share.innerHTML = '<span class="plp-icon plp-icon--share" aria-hidden="true"></span>';
 		stats.appendChild( share );
 
+		// Mirrors the server: the control only exists where a picker panel does, which
+		// is only rendered for users who may edit.
+		if ( q( '[data-plp-picker]' ) ) {
+			var addTo = document.createElement( 'button' );
+			addTo.type = 'button';
+			addTo.className = 'plp-addto';
+			addTo.setAttribute( 'data-plp-addto', '' );
+			addTo.setAttribute( 'aria-label', PLPlayer.i18n.addToList );
+			addTo.title = PLPlayer.i18n.addToList;
+			addTo.innerHTML = '<span class="plp-icon plp-icon--plus" aria-hidden="true"></span>';
+			stats.appendChild( addTo );
+		}
+
 		if ( showStats ) {
 			var plays = document.createElement( 'span' );
 			plays.className = 'plp-plays';
@@ -1535,6 +1711,38 @@
 				if ( owner ) {
 					seekTo( owner, list, parseFloat( chapter.getAttribute( 'data-plp-chapter' ) ) || 0 );
 				}
+
+				return;
+			}
+
+			var addTo = event.target.closest( '[data-plp-addto]' );
+
+			if ( addTo ) {
+				event.preventDefault();
+				openPicker( addTo.closest( '.plp-track' ), list );
+
+				return;
+			}
+
+			if ( event.target.closest( '[data-plp-picker-close]' ) ) {
+				event.preventDefault();
+				closePicker( list );
+
+				return;
+			}
+
+			var pick = event.target.closest( '.plp-picker__pick' );
+
+			if ( pick ) {
+				event.preventDefault();
+				addToPlaylist( parseInt( pick.dataset.playlist, 10 ), list );
+
+				return;
+			}
+
+			if ( event.target.closest( '[data-plp-picker-create]' ) ) {
+				event.preventDefault();
+				createPlaylist( list );
 
 				return;
 			}

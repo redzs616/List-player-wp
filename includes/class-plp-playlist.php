@@ -74,6 +74,192 @@ class PLP_Playlist {
 		return $post ? (int) $post->ID : 0;
 	}
 
+	/**
+	 * Every published playlist, with the facts an index page needs.
+	 *
+	 * @param int $limit Maximum playlists.
+	 * @return array
+	 */
+	public static function all( $limit = 100 ) {
+		$playlists = get_posts(
+			array
+			(
+				'post_type'        => PLP_Post_Types::PLAYLIST,
+				'post_status'      => 'publish',
+				'numberposts'      => max( 1, min( 200, absint( $limit ) ) ),
+				'orderby'          => 'title',
+				'order'            => 'ASC',
+				'suppress_filters' => false,
+			)
+		);
+
+		$out = array();
+
+		foreach ( $playlists as $playlist ) {
+			$ids     = self::track_ids( $playlist->ID );
+			$seconds = 0;
+
+			foreach ( $ids as $track_id ) {
+				$seconds += absint( get_post_meta( $track_id, '_pl_duration', true ) );
+			}
+
+			$thumbnail = (int) get_post_thumbnail_id( $playlist->ID );
+
+			$out[] = array(
+				'id'       => (int) $playlist->ID,
+				'title'    => get_the_title( $playlist ),
+				'slug'     => $playlist->post_name,
+				'count'    => count( $ids ),
+				'seconds'  => $seconds,
+				'duration' => plp_format_listening_time( $seconds ),
+				'cover'    => $thumbnail ? (string) wp_get_attachment_image_url( $thumbnail, 'medium' ) : '',
+				'hue'      => PLP_Source::cover_hue( $playlist->ID ),
+				'initial'  => PLP_Source::cover_initial( get_the_title( $playlist ) ),
+				'excerpt'  => wp_trim_words( wp_strip_all_tags( (string) $playlist->post_content ), 22, '…' ),
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Playlists the current user may edit, for the "add to playlist" control.
+	 *
+	 * @return array List of ['id' => int, 'title' => string, 'count' => int, 'has' => bool].
+	 */
+	public static function editable_for( $track_id = 0 ) {
+		if ( ! current_user_can( 'edit_posts' ) ) {
+			return array();
+		}
+
+		$playlists = get_posts(
+			array(
+				'post_type'        => PLP_Post_Types::PLAYLIST,
+				'post_status'      => array( 'publish', 'draft', 'private' ),
+				'numberposts'      => 100,
+				'orderby'          => 'modified',
+				'order'            => 'DESC',
+				'suppress_filters' => false,
+			)
+		);
+
+		$track_id = absint( $track_id );
+		$out      = array();
+
+		foreach ( $playlists as $playlist ) {
+			if ( ! current_user_can( 'edit_post', $playlist->ID ) ) {
+				continue;
+			}
+
+			$ids = self::track_ids( $playlist->ID );
+
+			$out[] = array(
+				'id'    => (int) $playlist->ID,
+				'title' => get_the_title( $playlist ),
+				'count' => count( $ids ),
+				'has'   => $track_id && in_array( $track_id, $ids, true ),
+			);
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Appends a track to a playlist.
+	 *
+	 * @param int $playlist_id Playlist ID.
+	 * @param int $track_id    Track ID.
+	 * @return array|WP_Error
+	 */
+	public static function add_track( $playlist_id, $track_id ) {
+		$playlist_id = absint( $playlist_id );
+		$track_id    = absint( $track_id );
+
+		$playlist = get_post( $playlist_id );
+
+		if ( ! $playlist || PLP_Post_Types::PLAYLIST !== $playlist->post_type ) {
+			return new WP_Error( 'plp_no_playlist', __( 'Nincs ilyen lejátszási lista.', 'pl-player' ) );
+		}
+
+		if ( ! current_user_can( 'edit_post', $playlist_id ) ) {
+			return new WP_Error( 'plp_forbidden', __( 'Nincs jogosultságod ehhez a listához.', 'pl-player' ) );
+		}
+
+		if ( ! PLP_Source::is_playable( $track_id ) ) {
+			return new WP_Error( 'plp_not_playable', __( 'Ez a szám nem játszható le.', 'pl-player' ) );
+		}
+
+		$ids = self::track_ids( $playlist_id );
+
+		// Already there: report success rather than an error, because the end state the
+		// caller asked for is the end state they got.
+		if ( in_array( $track_id, $ids, true ) ) {
+			return array(
+				'id'    => $playlist_id,
+				'count' => count( $ids ),
+				'added' => false,
+			);
+		}
+
+		$ids[] = $track_id;
+
+		update_post_meta( $playlist_id, self::META, implode( ',', $ids ) );
+
+		return array(
+			'id'    => $playlist_id,
+			'count' => count( $ids ),
+			'added' => true,
+		);
+	}
+
+	/**
+	 * Creates a playlist, optionally with a first track in it.
+	 *
+	 * @param string $title    Playlist name.
+	 * @param int    $track_id Optional first track.
+	 * @return array|WP_Error
+	 */
+	public static function create( $title, $track_id = 0 ) {
+		if ( ! current_user_can( 'publish_posts' ) ) {
+			return new WP_Error( 'plp_forbidden', __( 'Nincs jogosultságod listát létrehozni.', 'pl-player' ) );
+		}
+
+		$title = sanitize_text_field( (string) $title );
+		$title = trim( $title );
+
+		if ( '' === $title ) {
+			return new WP_Error( 'plp_no_title', __( 'Adj nevet a listának.', 'pl-player' ) );
+		}
+
+		$playlist_id = wp_insert_post(
+			array(
+				'post_type'   => PLP_Post_Types::PLAYLIST,
+				'post_title'  => $title,
+				'post_status' => 'publish',
+			),
+			true
+		);
+
+		if ( is_wp_error( $playlist_id ) ) {
+			return $playlist_id;
+		}
+
+		$count    = 0;
+		$track_id = absint( $track_id );
+
+		if ( $track_id && PLP_Source::is_playable( $track_id ) ) {
+			update_post_meta( $playlist_id, self::META, (string) $track_id );
+			$count = 1;
+		}
+
+		return array(
+			'id'    => (int) $playlist_id,
+			'title' => $title,
+			'count' => $count,
+			'added' => $count > 0,
+		);
+	}
+
 	/* ---------------------------------------------------------------------
 	 * Editor
 	 * ------------------------------------------------------------------ */
