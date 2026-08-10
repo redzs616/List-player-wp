@@ -112,3 +112,34 @@
 	margin-top: 16px;
 	font-size: 15px;
 }
+
+/* --- Bulk actions --- */
+
+.plp-dupes__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 16px 0;
+	padding: 10px 12px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 6px;
+}
+
+.plp-dupes__count {
+	margin-left: auto;
+	font-weight: 600;
+}
+
+/* A row that is not the plugin's own track: existing content with its own
+   permalink, so trashing it reaches further than the player. */
+.plp-dupes__foreign {
+	display: inline-block;
+	margin-top: 2px;
+	padding: 1px 6px;
+	color: #8a6d00;
+	font-size: 11px;
+	background: #fcf3d4;
+	border-radius: 3px;
+}

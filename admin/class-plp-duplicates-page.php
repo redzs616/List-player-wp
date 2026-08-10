@@ -31,6 +31,7 @@ class PLP_Duplicates_Page {
 		add_action( 'admin_menu', array( __CLASS__, 'add_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue' ) );
 		add_action( 'admin_post_plp_export_duplicates', array( __CLASS__, 'export_csv' ) );
+		add_action( 'admin_post_plp_trash_duplicates', array( __CLASS__, 'bulk_trash' ) );
 	}
 
 	/**
@@ -58,6 +59,28 @@ class PLP_Duplicates_Page {
 		}
 
 		wp_enqueue_style( 'plp-duplicates', PLP_URL . 'admin/assets/css/duplicates.css', array(), PLP_VERSION );
+
+		wp_enqueue_script(
+			'plp-duplicates',
+			PLP_URL . 'admin/assets/js/duplicates.js',
+			array(),
+			PLP_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'plp-duplicates',
+			'PLPDupes',
+			array(
+				'nothingPicked' => __( 'Nem jelöltél ki egyetlen bejegyzést sem.', 'pl-player' ),
+				/* translators: %d: number of posts. */
+				'confirm'       => __( 'Ez %d bejegyzést tesz a lomtárba. A lomtárból visszaállíthatók, amíg nem ürítesz lomtárat. Folytatod?', 'pl-player' ),
+				/* translators: 1: number of posts, 2: number of posts that are not plugin tracks. */
+				'confirmMixed'  => __( 'Ez %1$d bejegyzést tesz a lomtárba, és közülük %2$d NEM a bővítmény saját zeneszáma, hanem meglévő tartalom — például podcast epizód, aminek saját linkje és RSS bejegyzése van. A lomtárból visszaállíthatók. Folytatod?', 'pl-player' ),
+				/* translators: %d: number of selected posts. */
+				'selected'      => __( 'Kijelölve: %d', 'pl-player' ),
+			)
+		);
 	}
 
 	/* ---------------------------------------------------------------------
@@ -81,6 +104,8 @@ class PLP_Duplicates_Page {
 				<?php esc_html_e( 'Ez a jelentés azt keresi, mely felvételek szerepelnek a lejátszóban többször. A leggyakoribb ok, hogy ugyanaz az MP3 két bejegyzésben is szerepel — egy podcast epizódban és egy zeneszámban. Semmit nem töröl: te döntöd el, melyik példány maradjon.', 'pl-player' ); ?>
 			</p>
 
+			<?php self::render_result_notice(); ?>
+
 			<?php self::render_summary( $report ); ?>
 
 			<?php if ( ! $report['groups'] ) : ?>
@@ -100,23 +125,146 @@ class PLP_Duplicates_Page {
 				</a>
 			</p>
 
-			<?php
-			$previous = '';
+			<?php self::render_foreign_warning( $report ); ?>
 
-			foreach ( $report['groups'] as $group ) {
-				if ( $group['kind'] !== $previous ) {
-					printf( '<h2>%s</h2>', esc_html( PLP_Duplicates::kind_label( $group['kind'] ) ) );
-					printf( '<p class="plp-dupes__note">%s</p>', esc_html( PLP_Duplicates::kind_note( $group['kind'] ) ) );
-					$previous = $group['kind'];
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-plp-dupes-form>
+				<input type="hidden" name="action" value="plp_trash_duplicates" />
+				<?php wp_nonce_field( 'plp_trash_duplicates' ); ?>
+
+				<?php self::render_actions(); ?>
+
+				<?php
+				$previous = '';
+
+				foreach ( $report['groups'] as $group ) {
+					if ( $group['kind'] !== $previous ) {
+						printf( '<h2>%s</h2>', esc_html( PLP_Duplicates::kind_label( $group['kind'] ) ) );
+						printf( '<p class="plp-dupes__note">%s</p>', esc_html( PLP_Duplicates::kind_note( $group['kind'] ) ) );
+						$previous = $group['kind'];
+					}
+
+					self::render_group( $group );
 				}
+				?>
 
-				self::render_group( $group );
-			}
-			?>
+				<?php self::render_actions(); ?>
+			</form>
 
 			<?php self::render_advice(); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Warns when the removable copies include content the player did not create.
+	 *
+	 * This is the mistake worth preventing rather than merely undoing: a podcast episode
+	 * has a permalink people may have shared and an entry in a feed readers have already
+	 * fetched. For that pairing there is a fix that removes nothing at all.
+	 *
+	 * @param array $report Report data.
+	 */
+	private static function render_foreign_warning( array $report ) {
+		$foreign = array();
+
+		foreach ( $report['groups'] as $group ) {
+			$keep = PLP_Duplicates::suggest_keep( $group['items'] );
+
+			foreach ( $group['items'] as $item ) {
+				if ( (int) $item['id'] !== $keep && PLP_Post_Types::TRACK !== $item['type'] ) {
+					$foreign[ $item['type'] ] = true;
+				}
+			}
+		}
+
+		if ( ! $foreign ) {
+			return;
+		}
+
+		$names = array();
+
+		foreach ( array_keys( $foreign ) as $type ) {
+			$object  = get_post_type_object( $type );
+			$names[] = $object ? $object->labels->name : $type;
+		}
+
+		?>
+		<div class="notice notice-warning">
+			<p>
+				<strong><?php esc_html_e( 'Mielőtt tömegesen törölnél:', 'pl-player' ); ?></strong>
+				<?php
+				printf(
+					/* translators: %s: list of post type names. */
+					esc_html__( 'a törölhetőként megjelölt példányok között nem csak a bővítmény saját zeneszámai vannak, hanem meglévő tartalom is (%s). Ezeknek saját linkjük és RSS bejegyzésük van, amit a hallgatók már megkaphattak.', 'pl-player' ),
+					esc_html( implode( ', ', $names ) )
+				);
+				?>
+			</p>
+			<p>
+				<?php esc_html_e( 'Ha a duplikátumok többsége abból fakad, hogy ugyanaz a felvétel egyszer podcast epizódként, egyszer zeneszámként létezik, akkor a Beállításokban vedd ki a pipát az egyik tartalomtípusnál. A lejátszó onnantól csak az egyiket listázza, és semmit nem kell törölni.', 'pl-player' ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * The bulk action bar.
+	 *
+	 * Rendered above and below the tables, because the list can run long and nobody
+	 * should have to scroll back to the top to act on what they just ticked.
+	 */
+	private static function render_actions() {
+		?>
+		<div class="plp-dupes__actions">
+			<button type="submit" class="button button-primary" data-plp-dupes-submit>
+				<?php esc_html_e( 'Kijelöltek lomtárba', 'pl-player' ); ?>
+			</button>
+
+			<button type="button" class="button" data-plp-dupes-pick="file">
+				<?php esc_html_e( 'Csak a biztos egyezések kijelölése', 'pl-player' ); ?>
+			</button>
+
+			<button type="button" class="button" data-plp-dupes-pick="none">
+				<?php esc_html_e( 'Kijelölés törlése', 'pl-player' ); ?>
+			</button>
+
+			<span class="plp-dupes__count" data-plp-dupes-count aria-live="polite"></span>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Reports what the last bulk action actually did.
+	 */
+	private static function render_result_notice() {
+		$trashed = isset( $_GET['plp_trashed'] ) ? absint( $_GET['plp_trashed'] ) : -1; // phpcs:ignore WordPress.Security.NonceVerification
+
+		if ( $trashed < 0 ) {
+			return;
+		}
+
+		$skipped = isset( $_GET['plp_skipped'] ) ? absint( $_GET['plp_skipped'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
+
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p>%3$s</div>',
+			$trashed ? 'success' : 'warning',
+			esc_html(
+				sprintf(
+					/* translators: %s: number of posts. */
+					_n( '%s bejegyzés a lomtárba került.', '%s bejegyzés a lomtárba került.', $trashed, 'pl-player' ),
+					number_format_i18n( $trashed )
+				)
+			),
+			$skipped
+				? '<p>' . esc_html(
+					sprintf(
+						/* translators: %s: number of posts. */
+						__( '%s bejegyzést kihagytam: mire a művelet lefutott, már nem szerepeltek a jelentésben törölhetőként, vagy nincs rájuk törlési jogosultságod.', 'pl-player' ),
+						number_format_i18n( $skipped )
+					)
+				) . '</p>'
+				: ''
+		);
 	}
 
 	/**
@@ -152,7 +300,11 @@ class PLP_Duplicates_Page {
 	private static function render_group( array $group ) {
 		$keep = PLP_Duplicates::suggest_keep( $group['items'] );
 
-		echo '<table class="wp-list-table widefat striped plp-dupes__table"><thead><tr>';
+		echo '<table class="wp-list-table widefat striped plp-dupes__table" data-plp-dupes-group="' . esc_attr( $group['kind'] ) . '"><thead><tr>';
+		printf(
+			'<td class="check-column"><input type="checkbox" data-plp-dupes-all aria-label="%s" /></td>',
+			esc_attr__( 'A csoport összes törölhető példányának kijelölése', 'pl-player' )
+		);
 		printf( '<th>%s</th>', esc_html__( 'Bejegyzés', 'pl-player' ) );
 		printf( '<th>%s</th>', esc_html__( 'Típus', 'pl-player' ) );
 		printf( '<th>%s</th>', esc_html__( 'Dátum', 'pl-player' ) );
@@ -169,6 +321,28 @@ class PLP_Duplicates_Page {
 
 			printf( '<tr class="%s">', $is_keep ? 'plp-dupes__keep' : '' );
 
+			// The kept copy gets no checkbox at all. Making it unpickable in the markup
+			// is worth more than a validation message: a group can never be emptied by
+			// a stray "select all".
+			echo '<th scope="row" class="check-column">';
+
+			if ( ! $is_keep && current_user_can( 'delete_post', $item['id'] ) ) {
+				printf(
+					'<input type="checkbox" name="plp_trash[]" value="%1$d" data-plp-dupes-item%2$s aria-label="%3$s" />',
+					(int) $item['id'],
+					PLP_Post_Types::TRACK === $item['type'] ? '' : ' data-plp-dupes-foreign="1"',
+					esc_attr(
+						sprintf(
+							/* translators: %s: post title. */
+							__( '„%s" lomtárba tétele', 'pl-player' ),
+							$item['title']
+						)
+					)
+				);
+			}
+
+			echo '</th>';
+
 			printf(
 				'<td><a href="%1$s"><strong>%2$s</strong></a>%3$s<br /><span class="plp-dupes__file">%4$s</span></td>',
 				esc_url( (string) get_edit_post_link( $item['id'] ) ),
@@ -177,7 +351,16 @@ class PLP_Duplicates_Page {
 				esc_html( $item['file'] )
 			);
 
-			printf( '<td>%s</td>', esc_html( $type ? $type->labels->singular_name : $item['type'] ) );
+			printf(
+				'<td>%1$s%2$s</td>',
+				esc_html( $type ? $type->labels->singular_name : $item['type'] ),
+				// Worth flagging on the row itself: a podcast episode is content that
+				// existed before the player and has its own permalink and RSS entry.
+				// Trashing it is a bigger step than trashing a track the plugin made.
+				PLP_Post_Types::TRACK === $item['type']
+					? ''
+					: '<br /><span class="plp-dupes__foreign">' . esc_html__( 'meglévő tartalom', 'pl-player' ) . '</span>'
+			);
 			printf( '<td>%s</td>', esc_html( $item['date'] ) );
 			printf( '<td>%s</td>', esc_html( plp_format_duration( $item['duration'] ) ) );
 			printf( '<td class="plp-num">%s</td>', esc_html( number_format_i18n( $item['plays'] ) ) );
@@ -224,6 +407,112 @@ class PLP_Duplicates_Page {
 			</p>
 		</div>
 		<?php
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Bulk trash
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Moves the selected surplus copies to the trash.
+	 *
+	 * The posted IDs are treated as a request, never as an instruction. The report is
+	 * rebuilt here and only a post that it *currently* marks as a surplus copy may go:
+	 * a form left open in a tab while the library changed, or a hand-edited request,
+	 * must not be able to reach an arbitrary post. Trash rather than delete, so the way
+	 * back is a single click in WordPress's own screen.
+	 */
+	public static function bulk_trash() {
+		if ( ! current_user_can( 'delete_others_posts' ) ) {
+			wp_die( esc_html__( 'Nincs jogosultságod bejegyzések törléséhez.', 'pl-player' ) );
+		}
+
+		check_admin_referer( 'plp_trash_duplicates' );
+
+		$requested = isset( $_POST['plp_trash'] ) ? array_map( 'absint', (array) $_POST['plp_trash'] ) : array();
+		$requested = array_values( array_unique( array_filter( $requested ) ) );
+
+		$trashed = 0;
+		$skipped = 0;
+
+		if ( $requested ) {
+			$deletable = self::deletable_now();
+
+			// Grouped, so the last survivor of a group can be protected even if the
+			// request somehow asked for all of them.
+			$by_group = array();
+
+			foreach ( $requested as $id ) {
+				if ( ! isset( $deletable[ $id ] ) || ! current_user_can( 'delete_post', $id ) ) {
+					$skipped++;
+
+					continue;
+				}
+
+				$by_group[ $deletable[ $id ]['group'] ][] = $id;
+			}
+
+			foreach ( $by_group as $group => $ids ) {
+				$survivors = $deletable[ $ids[0] ]['size'] - count( $ids );
+
+				// Cannot happen through the form — the kept copy has no checkbox — but a
+				// group must never be wiped out entirely, so it is enforced here too.
+				while ( $survivors < 1 && $ids ) {
+					array_pop( $ids );
+					$skipped++;
+					$survivors++;
+				}
+
+				foreach ( $ids as $id ) {
+					if ( wp_trash_post( $id ) ) {
+						$trashed++;
+					} else {
+						$skipped++;
+					}
+				}
+			}
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'post_type'    => PLP_Post_Types::TRACK,
+					'page'         => self::SLUG,
+					'plp_trashed'  => $trashed,
+					'plp_skipped'  => $skipped,
+				),
+				admin_url( 'edit.php' )
+			)
+		);
+
+		exit;
+	}
+
+	/**
+	 * The surplus copies the report marks as removable right now.
+	 *
+	 * @return array<int, array{group:int, size:int}> Keyed by post ID.
+	 */
+	private static function deletable_now() {
+		$deletable = array();
+
+		foreach ( PLP_Duplicates::report()['groups'] as $index => $group ) {
+			$keep = PLP_Duplicates::suggest_keep( $group['items'] );
+			$size = count( $group['items'] );
+
+			foreach ( $group['items'] as $item ) {
+				if ( (int) $item['id'] === $keep ) {
+					continue;
+				}
+
+				$deletable[ (int) $item['id'] ] = array(
+					'group' => $index,
+					'size'  => $size,
+				);
+			}
+		}
+
+		return $deletable;
 	}
 
 	/* ---------------------------------------------------------------------

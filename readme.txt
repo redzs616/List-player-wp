@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -65,6 +65,34 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.9.0 — duplikátumok tömeges lomtárazása):
+
+* **Jelölőnégyzetek a duplikátum jelentésben**, és egy „Kijelöltek lomtárba"
+  gomb a táblázatok fölött és alatt is — hosszú listánál ne kelljen
+  visszagörgetni.
+* **„Csak a biztos egyezések kijelölése"** egy kattintással: ez kizárólag az
+  „Ugyanaz a hangfájl" csoportokat jelöli ki. A másik két szint találgatás,
+  azokat szándékosan nem nyúlja meg.
+* Csoportonként fejlécben egy kijelölő négyzet, ami követi a saját sorait
+  (részleges kijelölésnél félig behúzott állapot).
+* **A megtartásra javasolt példány nem is kap jelölőnégyzetet.** Így egy
+  csoportot elvileg sem lehet teljesen kiürteni.
+* **Lomtár, nem törlés.** A WordPress saját lomtárába kerül, tehát egy
+  kattintással visszaállítható, amíg nem ürítesz lomtárat.
+* A megerősítő kérdés megmondja, mennyi bejegyzésről van szó, és külön
+  kiemeli, ha közte **nem a bővítmény saját zeneszáma** van — például podcast
+  epizód, aminek saját linkje és RSS bejegyzése van.
+* A sorokon és a táblázatok fölött is jelezzük, ha meglévő tartalom kerülne
+  lomtárba, és ott ajánljuk a törlés nélküli megoldást: a Beállításokban vedd
+  ki a pipát az egyik tartalomtípusnál.
+* A művelet után kiírja, hány bejegyzés került lomtárba, és hányat hagyott ki.
+
+A szerver a beküldött azonosítókat **kérésnek tekinti, nem utasításnak**: újra
+felépíti a jelentést, és csak azt teszi lomtárba, amit az *abban a pillanatban*
+is fölös példányként jelöl, és amire van törlési jogosultságod. Így egy régóta
+nyitva hagyott fül vagy egy kézzel átírt kérés nem tud tetszőleges bejegyzéshez
+hozzáférni.
 
 Elkészült (1.8.0 — jelölők hallgatás közben, a lejátszóból):
 

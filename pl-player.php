@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Lejátszási Lista Player
  * Description:       Kategóriákba rendezett zenelejátszó, nyilvános lejátszás- és like-statisztikával.
- * Version:           1.8.0
+ * Version:           1.9.0
  * Requires at least: 6.0
  * Requires PHP:      7.4
  * License:           GPL-2.0-or-later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PLP_VERSION', '1.8.0' );
+define( 'PLP_VERSION', '1.9.0' );
 define( 'PLP_DB_VERSION', '2' );
 define( 'PLP_FILE', __FILE__ );
 define( 'PLP_PATH', plugin_dir_path( __FILE__ ) );

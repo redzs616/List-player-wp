@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.8.0-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.9.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -555,8 +555,53 @@ Minden a bal oldali **Lejátszó** menü alatt:
 | Lejátszási listák | Kézzel összeválogatott listák, fogd-és-vidd sorrenddel |
 | Kategóriák · Címkék | Hierarchikus kategóriák és szabad címkézés |
 | Tömeges import | Több MP3 egyszerre, ID3 előnézettel, duplikátum-védelemmel |
+| Duplikátumok | Mi szerepel többször, három bizonyossági szinten, tömeges lomtárazással |
+| Elemzés | BPM, energia, fényesség a hangból; borítógenerálás |
 | Statisztika | Összesítő kártyák, napi grafikon, top listák, kategóriabontás, CSV |
 | Beállítások | Tartalomtípusok, nyilvános adatok, lejátszás-küszöb, GitHub frissítés |
+
+## Duplikátumok
+
+**Lejátszó → Duplikátumok.** Három bizonyossági szinten csoportosít:
+
+| Szint | Mit jelent |
+|---|---|
+| **Ugyanaz a hangfájl** | Biztos: két bejegyzés egy felvételre mutat. A tipikus eset, amikor egy podcast epizód és egy zeneszám ugyanabból az MP3-ból készült. |
+| **Ugyanaz a cím, más fájl** | Nagyon valószínű, de lehet két különböző szett is egy néven — érdemes ránézni. |
+| **Azonos hossz, más cím és fájl** | Csak jelzés. Csak hosszú felvételeknél számol vele, mert rövid klipeknél a másodpercre egyezés gyakran véletlen. |
+
+Minden csoportban megjelöli, melyik példányt javasolja megtartani: a legtöbb
+lejátszással rendelkezőt, holtverseny esetén a régebbit — arra mutat valószínűbben
+egy meglévő link.
+
+### Tömeges lomtárazás
+
+Jelölőnégyzet minden törölhető soron, és **„Kijelöltek lomtárba"** a táblázatok fölött
+és alatt. A **„Csak a biztos egyezések kijelölése"** gomb kizárólag az *Ugyanaz a
+hangfájl* csoportokat jelöli ki — a másik két szint találgatás, azt szándékosan nem
+nyúlja meg egy kattintás.
+
+Amiért ez biztonságos:
+
+- **A megtartásra javasolt példány nem is kap jelölőnégyzetet**, tehát egy csoport
+  elvileg sem üríthető ki teljesen.
+- **Lomtár, nem törlés.** A WordPress saját lomtárába kerül, tehát visszaállítható,
+  amíg nem ürítesz lomtárat.
+- A szerver a beküldött azonosítókat **kérésnek tekinti, nem utasításnak**: újra
+  felépíti a jelentést, és csak azt teszi lomtárba, amit az *abban a pillanatban* is
+  fölös példányként jelöl, és amire van `delete_post` jogosultságod. Egy régóta nyitva
+  hagyott fül vagy egy kézzel átírt kérés így nem ér el tetszőleges bejegyzést.
+- A megerősítő kérdés megmondja a darabszámot, és külön kiemeli, ha **nem a bővítmény
+  saját zeneszáma** van közte.
+
+### Törlés nélkül is megoldható
+
+Ha a duplikátumok többsége abból fakad, hogy ugyanaz a felvétel egyszer podcast
+epizódként, egyszer zeneszámként létezik, a legkisebb kockázatú megoldás **nem** a
+törlés: a Beállításokban vedd ki a pipát az egyik tartalomtípusnál. A lejátszó
+onnantól csak az egyiket listázza, mindkét bejegyzés megmarad, a podcast RSS és a
+meglévő linkek sértetlenek — és a lejátszásszám sem veszik el. A jelentés magától
+figyelmeztet, ha ez a helyzet áll fenn.
 
 ## Horgok fejlesztőknek
 
