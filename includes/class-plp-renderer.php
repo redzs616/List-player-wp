@@ -95,6 +95,9 @@ class PLP_Renderer {
 			'theme'      => in_array( $atts['theme'], array( 'auto', 'dark', 'light' ), true ) ? $atts['theme'] : 'auto',
 			'show_popup' => self::is_yes( $atts['popup'] ),
 			'playlist'   => PLP_Playlist::resolve( $atts['playlist'] ),
+			// Kept apart from the resolved ID so that a named-but-missing playlist can
+			// fail as "nothing to show" instead of silently widening to the whole library.
+			'playlist_asked' => '' !== trim( (string) $atts['playlist'] ),
 			// `always` overrides the visitor's reduced-motion preference. Worth having
 			// as an explicit opt-in: an equalizer is the feature itself, not decorative
 			// chrome, so some owners will want it regardless.
@@ -161,8 +164,17 @@ class PLP_Renderer {
 		$config = self::config( $atts );
 
 		// A named playlist replaces the category and sorting logic with its own order.
-		if ( $config['playlist'] ) {
-			$config['include'] = PLP_Playlist::track_ids( $config['playlist'] );
+		if ( $config['playlist_asked'] ) {
+			$config['include'] = $config['playlist']
+				? PLP_Playlist::track_ids( $config['playlist'] )
+				// Named but unreachable — a typo, a draft, a deleted list. query_args
+				// turns an empty set into "match nothing", which is the honest answer.
+				: array();
+
+			// The chosen order is the whole point of a playlist, so query_args ignores
+			// sorting here. Leaving the control on screen would offer the visitor a
+			// dropdown that does nothing.
+			$config['show_sort'] = false;
 		}
 
 		$query = new WP_Query( PLP_Source::query_args( $config ) );
@@ -185,6 +197,9 @@ class PLP_Renderer {
 
 		$client_config = array(
 			'terms'      => $config['terms'],
+			// Carried so that searching and paging stay inside the playlist. Without it
+			// the second fetch silently widens to the whole library.
+			'playlist'   => $config['playlist'] ? (int) $config['playlist'] : 0,
 			'postTypes'  => $config['post_types'],
 			'layout'     => $config['layout'],
 			'perPage'    => $config['per_page'],
@@ -207,7 +222,15 @@ class PLP_Renderer {
 			<?php endif; ?>
 
 			<?php if ( $config['show_nav'] ) : ?>
-				<?php self::render_nav( $config ); ?>
+				<?php if ( $config['playlist'] ) : ?>
+					<?php // A playlist is not a filter, so a category bar with "Összes" on
+						// it would be both wrong and clickable-into-nowhere. Its name is
+						// the heading the visitor needs. `nav="no"` still turns the whole
+						// row off, which is how the playlist page avoids a second title. ?>
+					<?php self::render_playlist_heading( $config['playlist'], count( $tracks ) ); ?>
+				<?php else : ?>
+					<?php self::render_nav( $config ); ?>
+				<?php endif; ?>
 			<?php endif; ?>
 
 			<?php // The pop-out button counts as a reason to render this row: it must not
@@ -849,6 +872,35 @@ class PLP_Renderer {
 	 *
 	 * @param array $config Player configuration.
 	 */
+	/**
+	 * Names the playlist in place of the category navigation.
+	 *
+	 * @param int $playlist_id Playlist post ID.
+	 * @param int $count       Tracks actually rendered.
+	 */
+	private static function render_playlist_heading( $playlist_id, $count ) {
+		$title = get_the_title( $playlist_id );
+
+		if ( '' === trim( (string) $title ) ) {
+			return;
+		}
+		?>
+		<div class="plp-listname">
+			<span class="plp-listname__icon" aria-hidden="true"></span>
+			<h3 class="plp-listname__title"><?php echo esc_html( $title ); ?></h3>
+			<span class="plp-listname__count">
+				<?php
+				printf(
+					/* translators: %s: number of tracks. */
+					esc_html__( '%s szám', 'pl-player' ),
+					esc_html( number_format_i18n( (int) $count ) )
+				);
+				?>
+			</span>
+		</div>
+		<?php
+	}
+
 	private static function render_nav( array $config ) {
 		$taxonomies = PLP_Source::all_taxonomies();
 

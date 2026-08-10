@@ -1624,7 +1624,11 @@
 			order: cfg.order
 		};
 
-		if ( cfg.terms && cfg.terms.length ) {
+		// The playlist has to travel with every request. It defines the set; the
+		// categories do not apply inside it.
+		if ( cfg.playlist ) {
+			params.playlist = cfg.playlist;
+		} else if ( cfg.terms && cfg.terms.length ) {
 			params.terms = cfg.terms.join( ',' );
 		}
 

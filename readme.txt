@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.7.1
+Stable tag: 1.7.2
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -65,6 +65,25 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Javítva (1.7.2 — kirakott lejátszási listák):
+
+* **A lista neve látszik ott, ahol eddig a kategóriák.** Ha egy oldalra
+  `[playlist_player playlist="..."]`-t teszel, felül eddig a teljes
+  kategória-navigáció jelent meg „Összes" gombbal. Egy lista nem szűrő, tehát
+  most a lista neve és a számok darabszáma áll ott. Az `nav="no"` továbbra is
+  eltünteti ezt a sort is.
+* **A lista eddig szétesett az első lekérés után.** A lista azonosítója nem
+  utazott a REST kérésekkel, így egy keresés, egy kategóriakattintás vagy a
+  „Továbbiak" gomb csendben az egész zenetárra váltott. Innentől minden
+  lekérés a listán belül marad.
+* A rendezés választó listamódban eltűnik. A lista saját sorrendje felülírja a
+  rendezést, tehát egy olyan legördülő volt kitéve, ami semmit nem tett.
+* Ha a megnevezett lista nem létezik (elírás, vázlat, kukázott), a lejátszó
+  üres marad. Eddig ilyenkor **az egész zenetárat** kilistázta.
+* Vázlat állapotú lista tartalmát kívülről nem lehet kiolvasni. A lista
+  azonosítója most nyilvános REST paraméter is, ezért a feloldás jogosultságot
+  ellenőriz.
 
 Javítva (1.7.1 — a kiemelt panel play gombja):
 

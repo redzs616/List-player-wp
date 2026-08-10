@@ -42,6 +42,14 @@ class PLP_Rest {
 						'type'    => 'string',
 						'default' => '',
 					),
+					// Without this a playlist survives only the first paint: every later
+					// fetch — a search, a sort, a page — would fall back to the whole
+					// library and quietly leave the playlist behind.
+					'playlist'  => array(
+						'description' => __( 'Lejátszási lista azonosítója vagy keresőbarát neve.', 'pl-player' ),
+						'type'        => 'string',
+						'default'     => '',
+					),
 					'search'    => array(
 						'type'    => 'string',
 						'default' => '',
@@ -245,17 +253,25 @@ class PLP_Rest {
 			$post_types = array( $requested );
 		}
 
-		$args = PLP_Source::query_args(
-			array(
-				'post_types' => $post_types,
-				'terms'      => array_map( 'absint', explode( ',', (string) $request->get_param( 'terms' ) ) ),
-				'search'     => (string) $request->get_param( 'search' ),
-				'orderby'    => (string) $request->get_param( 'orderby' ),
-				'order'      => (string) $request->get_param( 'order' ),
-				'per_page'   => (int) $request->get_param( 'per_page' ),
-				'page'       => (int) $request->get_param( 'page' ),
-			)
+		$config = array(
+			'post_types' => $post_types,
+			'terms'      => array_map( 'absint', explode( ',', (string) $request->get_param( 'terms' ) ) ),
+			'search'     => (string) $request->get_param( 'search' ),
+			'orderby'    => (string) $request->get_param( 'orderby' ),
+			'order'      => (string) $request->get_param( 'order' ),
+			'per_page'   => (int) $request->get_param( 'per_page' ),
+			'page'       => (int) $request->get_param( 'page' ),
 		);
+
+		// A playlist is a fixed set in a chosen order, so it takes over from the
+		// categories and the sorting — exactly as it does on the first render.
+		$playlist = PLP_Playlist::resolve( (string) $request->get_param( 'playlist' ) );
+
+		if ( $playlist ) {
+			$config['include'] = PLP_Playlist::track_ids( $playlist );
+		}
+
+		$args = PLP_Source::query_args( $config );
 
 		$query  = new WP_Query( $args );
 		$tracks = array();

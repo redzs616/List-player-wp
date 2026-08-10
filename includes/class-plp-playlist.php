@@ -66,12 +66,34 @@ class PLP_Playlist {
 		if ( ctype_digit( $reference ) ) {
 			$post = get_post( absint( $reference ) );
 
-			return ( $post && PLP_Post_Types::PLAYLIST === $post->post_type ) ? (int) $post->ID : 0;
+			if ( ! $post || PLP_Post_Types::PLAYLIST !== $post->post_type ) {
+				return 0;
+			}
+
+			return self::readable( $post ) ? (int) $post->ID : 0;
 		}
 
 		$post = get_page_by_path( sanitize_title( $reference ), OBJECT, PLP_Post_Types::PLAYLIST );
 
-		return $post ? (int) $post->ID : 0;
+		return ( $post && self::readable( $post ) ) ? (int) $post->ID : 0;
+	}
+
+	/**
+	 * Whether this playlist may be shown to whoever is asking.
+	 *
+	 * This reference now arrives from a public REST parameter as well as from a
+	 * shortcode an editor wrote, so an unpublished list must not hand out its
+	 * contents to a passer-by who guessed an ID.
+	 *
+	 * @param WP_Post $post Playlist post.
+	 * @return bool
+	 */
+	private static function readable( $post ) {
+		if ( 'publish' === $post->post_status ) {
+			return true;
+		}
+
+		return current_user_can( 'read_post', $post->ID );
 	}
 
 	/**
