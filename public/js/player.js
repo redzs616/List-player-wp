@@ -347,27 +347,40 @@
 		pickerTrack = null;
 	}
 
-	function addToPlaylist( playlistId, list ) {
+	function addToPlaylist( playlistId, list, playlistName ) {
 		if ( ! pickerTrack ) {
 			return;
 		}
 
 		var picker = pickerOf( list );
+		// Captured now: closing the panel clears pickerTrack, and the message below
+		// still has to name the track that was actually filed.
+		var track = pickerTrack;
 
 		pickerNote( picker, PLPlayer.i18n.saving );
 
 		request( '/playlists/' + playlistId + '/add', null, {
 			method: 'POST',
-			body: { track: parseInt( pickerTrack.getAttribute( 'data-id' ), 10 ) }
+			body: { track: parseInt( track.getAttribute( 'data-id' ), 10 ) }
 		} ).then( function () {
-			pickerNote( picker, PLPlayer.i18n.addedToList );
-
-			return request( '/playlists', { track: pickerTrack.getAttribute( 'data-id' ) } );
-		} ).then( function ( data ) {
-			renderPicker( picker, data.playlists || [] );
+			// Close it. A panel left standing still belongs to the track just filed, so
+			// the next click would move THAT one somewhere else — which is exactly the
+			// mix-up this caused. The confirmation goes to the status line instead,
+			// where it survives the panel closing.
+			closePicker( list );
+			announce( list, addedMessage( PLPlayer.i18n.addedTo, track, playlistName ) );
 		} ).catch( function ( error ) {
 			pickerNote( picker, ( error && error.message ) || PLPlayer.i18n.error );
 		} );
+	}
+
+	/**
+	 * "<track> added to <playlist>", with both names filled in.
+	 */
+	function addedMessage( template, track, playlistName ) {
+		return template
+			.replace( '%1$s', track ? ( track.getAttribute( 'data-title' ) || '' ) : '' )
+			.replace( '%2$s', playlistName || '' );
 	}
 
 	function createPlaylist( list ) {
@@ -381,23 +394,23 @@
 			return;
 		}
 
+		var track = pickerTrack;
+
 		pickerNote( picker, PLPlayer.i18n.saving );
 
 		request( '/playlists', null, {
 			method: 'POST',
 			body: {
 				title: title,
-				track: pickerTrack ? parseInt( pickerTrack.getAttribute( 'data-id' ), 10 ) : 0
+				track: track ? parseInt( track.getAttribute( 'data-id' ), 10 ) : 0
 			}
 		} ).then( function () {
 			input.value = '';
-			pickerNote( picker, PLPlayer.i18n.listCreated );
 
-			return request( '/playlists', {
-				track: pickerTrack ? pickerTrack.getAttribute( 'data-id' ) : 0
-			} );
-		} ).then( function ( data ) {
-			renderPicker( picker, data.playlists || [] );
+			// Same reasoning as addToPlaylist: the job is done, so the panel goes away
+			// rather than lingering with a stale track behind it.
+			closePicker( list );
+			announce( list, addedMessage( PLPlayer.i18n.createdWith, track, title ) );
 		} ).catch( function ( error ) {
 			pickerNote( picker, ( error && error.message ) || PLPlayer.i18n.error );
 		} );
@@ -488,6 +501,14 @@
 	function select( item, list, autoplay ) {
 		if ( ! item || ! item.getAttribute( 'data-audio' ) ) {
 			return;
+		}
+
+		// Moving to another track abandons whatever the picker was opened for, so the
+		// panel must not stay behind pointing at the previous one. Opening the picker
+		// never reaches select() — that branch returns first — so this cannot close the
+		// panel that was just opened.
+		if ( pickerTrack && pickerTrack !== item ) {
+			closePicker( list );
 		}
 
 		if ( currentItem && currentItem !== item ) {
@@ -2106,7 +2127,14 @@
 
 			if ( pick ) {
 				event.preventDefault();
-				addToPlaylist( parseInt( pick.dataset.playlist, 10 ), list );
+
+				var pickName = q( '.plp-picker__name', pick );
+
+				addToPlaylist(
+					parseInt( pick.dataset.playlist, 10 ),
+					list,
+					pickName ? pickName.textContent : ''
+				);
 
 				return;
 			}

@@ -97,23 +97,68 @@ class PLP_Playlist {
 	}
 
 	/**
-	 * Every published playlist, with the facts an index page needs.
+	 * Published playlists, with the facts an index page needs.
 	 *
-	 * @param int $limit Maximum playlists.
+	 * @param int   $limit   Maximum playlists.
+	 * @param array $options Optional. `include` and `exclude` take arrays of IDs or
+	 *                       slugs; `orderby` takes title, date or tracks; `order` asc
+	 *                       or desc. Naming lists in `include` fixes their order to the
+	 *                       one given, and `orderby` is then ignored.
 	 * @return array
 	 */
-	public static function all( $limit = 100 ) {
-		$playlists = get_posts(
-			array
-			(
-				'post_type'        => PLP_Post_Types::PLAYLIST,
-				'post_status'      => 'publish',
-				'numberposts'      => max( 1, min( 200, absint( $limit ) ) ),
-				'orderby'          => 'title',
-				'order'            => 'ASC',
-				'suppress_filters' => false,
-			)
+	public static function all( $limit = 100, array $options = array() ) {
+		$args = array(
+			'post_type'        => PLP_Post_Types::PLAYLIST,
+			'post_status'      => 'publish',
+			'numberposts'      => max( 1, min( 200, absint( $limit ) ) ),
+			'orderby'          => 'title',
+			'order'            => 'ASC',
+			'suppress_filters' => false,
 		);
+
+		$include = self::ids_from( isset( $options['include'] ) ? $options['include'] : array() );
+		$exclude = self::ids_from( isset( $options['exclude'] ) ? $options['exclude'] : array() );
+
+		$orderby = isset( $options['orderby'] ) ? (string) $options['orderby'] : 'title';
+
+		// Each sort carries its own sensible direction, so an explicit `order` is only
+		// needed to go against it. Alphabetical wants A→Z; newest-first and
+		// biggest-first are what someone asking for date or size actually means.
+		$defaults = array(
+			'title'  => 'ASC',
+			'date'   => 'DESC',
+			'tracks' => 'DESC',
+		);
+
+		$direction = isset( $defaults[ $orderby ] ) ? $defaults[ $orderby ] : 'ASC';
+
+		if ( ! empty( $options['order'] ) ) {
+			$direction = 'asc' === strtolower( (string) $options['order'] ) ? 'ASC' : 'DESC';
+		}
+
+		if ( $include ) {
+			$args['post__in'] = $include;
+			// Whoever typed the names chose the order too. Sorting it alphabetically
+			// afterwards would throw that away.
+			$args['orderby']  = 'post__in';
+			unset( $args['order'] );
+		} else {
+			// Track count is not a database column; it is sorted on the collected rows
+			// further down, so the query just needs a stable order to start from.
+			$args['orderby'] = ( 'date' === $orderby ) ? 'date' : 'title';
+			$args['order']   = $direction;
+		}
+
+		if ( $exclude ) {
+			$args['post__not_in'] = $exclude;
+		}
+
+		// A named-but-unmatched list must not silently widen to everything.
+		if ( ! empty( $options['include'] ) && ! $include ) {
+			return array();
+		}
+
+		$playlists = get_posts( $args );
 
 		$out = array();
 
@@ -141,7 +186,45 @@ class PLP_Playlist {
 			);
 		}
 
+		if ( ! $include && 'tracks' === $orderby ) {
+			$descending = 'DESC' === $direction;
+
+			usort(
+				$out,
+				static function ( $a, $b ) use ( $descending ) {
+					return $descending ? $b['count'] <=> $a['count'] : $a['count'] <=> $b['count'];
+				}
+			);
+		}
+
 		return $out;
+	}
+
+	/**
+	 * Turns a mixed list of IDs and slugs into playlist post IDs.
+	 *
+	 * Accepts a comma-separated string or an array, so a shortcode attribute and an
+	 * internal call can both hand it whatever they naturally hold.
+	 *
+	 * @param mixed $reference IDs or slugs.
+	 * @return int[]
+	 */
+	private static function ids_from( $reference ) {
+		if ( is_string( $reference ) ) {
+			$reference = explode( ',', $reference );
+		}
+
+		$ids = array();
+
+		foreach ( (array) $reference as $one ) {
+			$id = self::resolve( is_scalar( $one ) ? (string) $one : '' );
+
+			if ( $id ) {
+				$ids[] = $id;
+			}
+		}
+
+		return array_values( array_unique( $ids ) );
 	}
 
 	/**

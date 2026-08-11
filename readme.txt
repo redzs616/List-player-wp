@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.9.0
+Stable tag: 1.10.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -65,6 +65,30 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.10.0 — válogatott listák egy oldalon, és a hozzáadás panel):
+
+* A `[playlist_index]` új **`lists`** paramétere: felsorolod, mely listákat
+  akarod kitenni, slug vagy ID alapján, vesszővel — és a megadott sorrend
+  érvényesül, nem az ábécé. Üresen hagyva továbbra is mindet kiteszi.
+  Például: `[playlist_index lists="nyari-mix,retro-szett,chill"]`
+* Új **`exclude`**: mindet kiteszi, kivéve a felsoroltakat.
+* Új **`orderby`**: `title` (ábécé), `date` (legújabb elöl) vagy `tracks`
+  (legtöbb számot tartalmazó elöl). Mindegyiknek megvan a maga természetes
+  iránya, az `order` csak akkor kell, ha szembe akarsz menni vele.
+* Ha egy megnevezett lista nem található (elírás, vagy nincs közzétéve), a
+  blokk ezt írja ki — nem azt, hogy „még nincs lejátszási lista". Az előbbi
+  üzenet a Beállítások felé küldött volna, holott a shortcode-ban van a hiba.
+
+Javítva: a „hozzáadás lejátszási listához" panel eddig nyitva maradt a mentés
+után, és **az előző számhoz kötve**. Így ha közben másik zenére léptél, a
+következő kattintás az előzőt tette egy újabb listába. Mostantól:
+
+* mentés után a panel **becsukódik**, és a lista alatti állapotsorban
+  megjelenik, hogy melyik szám melyik listába került — tehát látszik a
+  visszajelzés, csak nem egy útban lévő panelen
+* ugyanez új lista létrehozásánál is
+* ha másik számra váltasz, a panel akkor is becsukódik, bármitől is nyílt ki
 
 Elkészült (1.9.0 — duplikátumok tömeges lomtárazása):
 

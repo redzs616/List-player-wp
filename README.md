@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.9.0-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.10.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -207,10 +207,34 @@ lejátszóban, fölötte egy „← Vissza a listákhoz" linkkel.
 
 | Paraméter | Alapérték | Leírás |
 |---|---|---|
+| `lists` | — | **Csak ezek a listák**, slug vagy ID, vesszővel. A megadott sorrend érvényesül. Üresen hagyva minden közzétett lista megjelenik. |
+| `exclude` | — | Ezeket hagyd ki, slug vagy ID, vesszővel |
+| `orderby` | `title` | `title` (ábécé), `date` (legújabb elöl), `tracks` (legtöbb számot tartalmazó elöl) |
+| `order` | — | `asc` vagy `desc`, ha a fentiek természetes irányával szemben kell |
 | `columns` | `3` | Oszlopszám a listák rácsában, 1–6 |
 | `layout` | `hero` | Milyen elrendezésben nyíljon meg a választott lista |
 | `accent` | — | Kiemelő szín |
 | `limit` | `100` | Legfeljebb ennyi lista jelenik meg |
+
+Példák:
+
+```
+// Minden lista, ábécé sorrendben
+[playlist_index]
+
+// Csak ez a négy, pontosan ebben a sorrendben
+[playlist_index lists="nyari-mix,retro-szett,chill,ejszakai"]
+
+// Minden lista a legújabbtól, egy kivételével
+[playlist_index orderby="date" exclude="teszt-lista"]
+
+// A legnagyobb listák elöl, két oszlopban
+[playlist_index orderby="tracks" columns="2"]
+```
+
+A slug az, ami a lista URL-jében szerepel — a **Lejátszó → Lejátszási listák** táblázatban
+megtalálod. ID is használható, ha egyszerűbb. Ha egy megnevezett lista nem található
+(elírás, vagy nincs közzétéve), a blokk ezt kiírja, nem pedig azt, hogy nincs listád.
 
 A választott lista **valódi URL-t kap** (`?plp_list=slug`), nem helyben cserélődik. Így
 működik a vissza gomb, egy lista linkje megosztható, és minden állapot külön

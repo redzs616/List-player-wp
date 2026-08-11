@@ -555,6 +555,14 @@ class PLP_Renderer {
 				'layout'  => 'hero',
 				'accent'  => '',
 				'limit'   => 100,
+				// Which lists, by slug or ID. Given here, the order typed is the order
+				// shown. Left empty, every published list appears.
+				'lists'   => '',
+				'exclude' => '',
+				'orderby' => 'title',
+				// Empty on purpose: each sort has its own natural direction, and this
+				// only needs a value to go against it.
+				'order'   => '',
 			),
 			is_array( $atts ) ? $atts : array(),
 			'playlist_index'
@@ -568,15 +576,33 @@ class PLP_Renderer {
 			return self::render_chosen( $chosen, $atts, $accent );
 		}
 
-		$playlists = PLP_Playlist::all( absint( $atts['limit'] ) );
-		$style     = $accent ? 'style="--plp-accent:' . esc_attr( $accent ) . '"' : '';
+		$playlists = PLP_Playlist::all(
+			absint( $atts['limit'] ),
+			array(
+				'include' => (string) $atts['lists'],
+				'exclude' => (string) $atts['exclude'],
+				'orderby' => in_array( $atts['orderby'], array( 'title', 'date', 'tracks' ), true ) ? $atts['orderby'] : 'title',
+				'order'   => $atts['order'],
+			)
+		);
+
+		$named_none = '' !== trim( (string) $atts['lists'] ) && ! $playlists;
+		$style      = $accent ? 'style="--plp-accent:' . esc_attr( $accent ) . '"' : '';
 
 		ob_start();
 		?>
 		<div class="plp plp-index" <?php echo $style; // phpcs:ignore WordPress.Security.EscapeOutput ?>>
 			<?php if ( ! $playlists ) : ?>
 				<p class="plp-empty">
-					<?php esc_html_e( 'Még nincs lejátszási lista.', 'pl-player' ); ?>
+					<?php
+					// Telling these two apart matters: a mistyped slug otherwise reads as
+					// "you have no playlists", which sends you looking in the wrong place.
+					if ( $named_none ) {
+						esc_html_e( 'A megnevezett lejátszási listák egyike sem található. Ellenőrizd a slugokat a Lejátszó → Lejátszási listák oldalon — és hogy közzé vannak-e téve.', 'pl-player' );
+					} else {
+						esc_html_e( 'Még nincs lejátszási lista.', 'pl-player' );
+					}
+					?>
 				</p>
 			<?php else : ?>
 				<ul class="plp-index__grid" style="--plp-columns:<?php echo esc_attr( (string) max( 1, min( 6, absint( $atts['columns'] ) ) ) ); ?>">

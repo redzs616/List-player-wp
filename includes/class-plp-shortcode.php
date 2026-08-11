@@ -93,6 +93,10 @@ class PLP_Shortcode {
 					'saving'       => __( 'Mentés…', 'pl-player' ),
 					'addedToList'  => __( 'Hozzáadva.', 'pl-player' ),
 					'listCreated'  => __( 'A lista elkészült, és a szám bekerült.', 'pl-player' ),
+					/* translators: 1: track title, 2: playlist name. */
+					'addedTo'      => __( '„%1$s" hozzáadva ehhez a listához: %2$s', 'pl-player' ),
+					/* translators: 1: track title, 2: playlist name. */
+					'createdWith'  => __( '„%2$s" lista elkészült, és „%1$s" bekerült.', 'pl-player' ),
 					'needName'     => __( 'Adj nevet a listának.', 'pl-player' ),
 					'markJump'     => __( 'Ugrás ide', 'pl-player' ),
 					'markName'     => __( 'A jelölő megnevezése', 'pl-player' ),
