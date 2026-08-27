@@ -403,6 +403,11 @@ class PLP_Renderer {
 						</span>
 					</div>
 
+					<?php // The ticks on the slider say where the marks are; these say what
+						// they are, and can actually be hit. Filled in by the script,
+						// because the panel changes track without reloading the page. ?>
+					<div class="plp-hero__chapters" data-plp-hero-chapters hidden></div>
+
 					<div class="plp-hero__controls">
 						<button type="button" class="plp-hero__button" data-plp-prev
 							aria-label="<?php esc_attr_e( 'Előző szám', 'pl-player' ); ?>">

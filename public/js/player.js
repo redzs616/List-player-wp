@@ -687,6 +687,7 @@
 				depth: q( '[data-plp-depth]', root ),
 				listened: q( '[data-plp-listened]', root ),
 				curve: q( '[data-plp-curve]', root ),
+				chapters: q( '[data-plp-hero-chapters]', root ),
 				markEdit: q( '[data-plp-mark-edit]', root ),
 				markAdd: q( '[data-plp-mark-add]', root ),
 				markList: q( '[data-plp-mark-list]', root ),
@@ -758,6 +759,7 @@
 		}
 
 		paintMarks( item, hero );
+		paintHeroChapters( item, hero );
 		syncHeroStats( item, hero );
 
 		// The editor follows whichever track is in the panel, and stays hidden unless
@@ -856,6 +858,45 @@
 			tick.title = marker.time + ( marker.label ? ' — ' + marker.label : '' );
 
 			hero.marks.appendChild( tick );
+		} );
+	}
+
+	/**
+	 * The clickable chapter strip under the hero slider.
+	 *
+	 * Laid out horizontally, wrapping, because time runs horizontally on the slider
+	 * right above it — a vertical list would break that correspondence and, with a
+	 * long tracklist, push the rest of the player off the screen. The ticks on the
+	 * slider stay: they show where the marks are, these say what they are.
+	 */
+	function paintHeroChapters( item, hero ) {
+		if ( ! hero || ! hero.chapters ) {
+			return;
+		}
+
+		var markers = item ? readMarkers( item ) : [];
+
+		hero.chapters.textContent = '';
+		hero.chapters.hidden = ! markers.length;
+
+		markers.forEach( function ( marker ) {
+			var chip = document.createElement( 'button' );
+
+			chip.type = 'button';
+			chip.className = 'plp-hero__chapter';
+			chip.setAttribute( 'data-plp-hero-chapter', String( marker.t ) );
+
+			var time = document.createElement( 'span' );
+			time.className = 'plp-hero__chapter-time';
+			time.textContent = marker.time || formatTime( marker.t );
+			chip.appendChild( time );
+
+			var label = document.createElement( 'span' );
+			label.className = 'plp-hero__chapter-label';
+			label.textContent = marker.label || '';
+			chip.appendChild( label );
+
+			hero.chapters.appendChild( chip );
 		} );
 	}
 
@@ -1011,6 +1052,7 @@
 			item.setAttribute( 'data-markers', JSON.stringify( data.markers || [] ) );
 
 			paintMarks( item, hero );
+			paintHeroChapters( item, hero );
 			paintChapters( item );
 			paintMarkEditor( list );
 
@@ -1634,6 +1676,115 @@
 		}
 	}
 
+	/* ------------------------------------------------------------------
+	 * Scrubbing
+	 *
+	 * The slider used to be protected from the playhead by a `:active` check.
+	 * That is not a reliable signal: the moment the pointer leaves the slider's
+	 * box mid-drag the pseudo-class drops, timeupdate resumes writing the real
+	 * playback position back into the slider, and the thumb snaps away from the
+	 * finger — which is felt as the slider sticking at a point. An explicit flag
+	 * driven by pointer events cannot come undone that way.
+	 * --------------------------------------------------------------- */
+
+	var scrubbing = false;
+	var scrubSlider = null;
+
+	function scrubSeconds( slider ) {
+		var duration = audio.duration;
+
+		if ( ! isFinite( duration ) || duration <= 0 ) {
+			return null;
+		}
+
+		return ( ( parseInt( slider.value, 10 ) || 0 ) / 1000 ) * duration;
+	}
+
+	/**
+	 * Shows where the drag currently points, without seeking.
+	 *
+	 * Seeking on every input event asks a file coming over the network to re-seek
+	 * on each pixel of travel, which stalls the audio and makes the drag feel like
+	 * it is fighting back. The real seek happens once, on release.
+	 */
+	function previewScrub( slider ) {
+		var seconds = scrubSeconds( slider );
+
+		if ( null === seconds ) {
+			return;
+		}
+
+		var label = formatTime( seconds );
+		var hero = heroOf( currentList );
+
+		if ( bar && els.current ) {
+			els.current.textContent = label;
+		}
+
+		if ( hero && hero.current ) {
+			hero.current.textContent = label;
+		}
+
+		// The panel and the sticky bar show the same track, so the slider that is
+		// not being dragged has to follow along or it will jump on release.
+		if ( hero && hero.seek && hero.seek !== slider ) {
+			hero.seek.value = slider.value;
+		}
+
+		if ( bar && els.seek && els.seek !== slider ) {
+			els.seek.value = slider.value;
+		}
+	}
+
+	function commitScrub() {
+		if ( ! scrubbing ) {
+			return;
+		}
+
+		var slider = scrubSlider;
+
+		scrubbing = false;
+		scrubSlider = null;
+
+		if ( ! slider ) {
+			return;
+		}
+
+		var seconds = scrubSeconds( slider );
+
+		if ( null !== seconds ) {
+			audio.currentTime = seconds;
+		}
+	}
+
+	function wireScrubber( slider ) {
+		if ( ! slider ) {
+			return;
+		}
+
+		slider.addEventListener( 'pointerdown', function () {
+			scrubbing = true;
+			scrubSlider = slider;
+		} );
+
+		slider.addEventListener( 'input', function () {
+			// Keyboard use produces input with no pointer down, and it still has to
+			// hold the playhead off until the value settles.
+			scrubbing = true;
+			scrubSlider = slider;
+			previewScrub( slider );
+		} );
+
+		// Fires on release for a pointer, and on each arrow key press.
+		slider.addEventListener( 'change', commitScrub );
+
+		slider.addEventListener( 'pointercancel', function () {
+			scrubbing = false;
+			scrubSlider = null;
+			paintProgress();
+		} );
+	}
+
 	function paintProgress() {
 		var duration = audio.duration;
 		var ratio = ( isFinite( duration ) && duration > 0 )
@@ -1644,7 +1795,7 @@
 			els.current.textContent = formatTime( audio.currentTime );
 			els.total.textContent = formatTime( duration );
 
-			if ( null !== ratio && ! els.seek.matches( ':active' ) ) {
+			if ( null !== ratio && ! scrubbing ) {
 				els.seek.value = String( ratio );
 			}
 		}
@@ -1660,7 +1811,7 @@
 				hero.total.textContent = formatTime( duration );
 			}
 
-			if ( hero.seek && null !== ratio && ! hero.seek.matches( ':active' ) ) {
+			if ( hero.seek && null !== ratio && ! scrubbing ) {
 				hero.seek.value = String( ratio );
 			}
 		}
@@ -2050,6 +2201,18 @@
 				return;
 			}
 
+			var heroChapter = event.target.closest( '[data-plp-hero-chapter]' );
+
+			if ( heroChapter ) {
+				event.preventDefault();
+
+				if ( currentItem ) {
+					seekTo( currentItem, list, parseInt( heroChapter.getAttribute( 'data-plp-hero-chapter' ), 10 ) || 0 );
+				}
+
+				return;
+			}
+
 			var markJump = event.target.closest( '[data-plp-mark-jump]' );
 
 			if ( markJump ) {
@@ -2284,11 +2447,7 @@
 		var hero = heroOf( list );
 
 		if ( hero && hero.seek ) {
-			hero.seek.addEventListener( 'input', function () {
-				if ( isFinite( audio.duration ) && audio.duration > 0 ) {
-					audio.currentTime = ( parseInt( hero.seek.value, 10 ) / 1000 ) * audio.duration;
-				}
-			} );
+			wireScrubber( hero.seek );
 		}
 
 		// With a hero panel there has to be something for its controls to act on before
@@ -2336,11 +2495,7 @@
 		els.prev.addEventListener( 'click', function () { step( -1 ); } );
 		els.next.addEventListener( 'click', function () { step( 1 ); } );
 
-		els.seek.addEventListener( 'input', function () {
-			if ( isFinite( audio.duration ) && audio.duration > 0 ) {
-				audio.currentTime = ( parseInt( els.seek.value, 10 ) / 1000 ) * audio.duration;
-			}
-		} );
+		wireScrubber( els.seek );
 
 		els.volume.addEventListener( 'input', function () {
 			audio.volume = parseInt( els.volume.value, 10 ) / 100;
@@ -2377,6 +2532,12 @@
 			flushProgress();
 			fadeEq();
 		} );
+
+		// A pointer released anywhere ends the drag. Without this, letting go outside
+		// the slider would leave the flag set and the playhead would never resume
+		// driving it. Bound here rather than with the bar, because a player can be on
+		// the page without one.
+		window.addEventListener( 'pointerup', commitScrub );
 
 		audio.addEventListener( 'timeupdate', function () {
 			paintProgress();

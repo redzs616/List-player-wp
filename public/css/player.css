@@ -452,6 +452,53 @@
 	border-radius: 4px;
 }
 
+/* Clickable chapters under the slider. Horizontal and wrapping, matching the way
+   time runs on the slider directly above; capped in height so a ninety-minute mix
+   with forty marks cannot push the rest of the player off the screen. */
+.plp-hero__chapters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+	max-height: 92px;
+	overflow-y: auto;
+}
+
+.plp-hero__chapters[hidden] {
+	display: none;
+}
+
+.plp-hero__chapter {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 6px;
+	max-width: 100%;
+	padding: 5px 10px;
+	color: inherit;
+	font: inherit;
+	font-size: 0.8em;
+	background: rgba( 255, 255, 255, 0.12 );
+	border: 1px solid rgba( 255, 255, 255, 0.18 );
+	border-radius: 999px;
+	cursor: pointer;
+}
+
+.plp-hero__chapter:hover {
+	background: rgba( 255, 255, 255, 0.22 );
+}
+
+.plp-hero__chapter-time {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	opacity: 0.75;
+}
+
+.plp-hero__chapter-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .plp-hero__controls {
 	display: flex;
 	gap: 8px;

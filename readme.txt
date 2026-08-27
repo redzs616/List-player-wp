@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.10.1
+Stable tag: 1.11.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -80,6 +80,31 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Javítva (1.11.0 — a csúszka megakadása, és kattintható fejezetek):
+
+**A csúszka húzás közben visszaugrott** a lejátszási pozícióra, jobbra és balra
+egyaránt. Az ok: a csúszkát a `:active` CSS állapot védte a visszaírástól, az
+viszont **elveszik**, amint a mutató húzás közben kicsúszik a csúszka dobozából.
+Onnantól a másodpercenkénti `timeupdate` visszaírta a tényleges lejátszási
+pozíciót — a gomb elszakadt az ujjadtól, és megállt egy ponton.
+
+* A `:active` helyett explicit húzás-jelző, amit mutató-események vezérelnek.
+  Ez nem tud „elveszni" a húzás közepén.
+* A tényleges tekerés **felengedéskor** történik, egyszer. Eddig minden
+  elmozdulásra újratekert, ami hálózatról érkező fájlnál akadozást okoz — a
+  húzás emiatt is küzdött ellened. Húzás közben az időkijelző követ, tehát
+  látod, hová tartasz.
+* A kiemelt panel és az alsó sáv csúszkája húzás közben együtt mozog, így
+  felengedéskor egyik sem ugrik.
+* Billentyűzettel (nyilakkal) ugyanúgy működik.
+* Ha a mutatót a csúszkán kívül engeded fel, a húzás akkor is rendesen lezárul.
+
+Új: **kattintható fejezetek a csúszka alatt** a kiemelt panelen. A csúszkán
+lévő vonalkák megmutatják, *hol* vannak a jelölők; ezek megmondják, *mik*, és
+rájuk lehet kattintani. Vízszintesen, sorba tördelve — mert közvetlenül fölöttük
+a csúszkán is vízszintesen fut az idő. Sok jelölőnél a csík görgethető, tehát egy
+hosszú tracklista nem tolja le a lejátszót a képernyőről.
 
 Javítva (1.10.1 — a csúszkák megfoghatósága):
 
