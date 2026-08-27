@@ -392,22 +392,44 @@
 	opacity: 0.75;
 }
 
+/* The height here is the GRABBABLE band, not the visible line. Previously the input
+   itself was 5px tall and carried the background, which meant the whole hit area was
+   5px — near impossible to catch with a thumb. The line now lives on the track
+   pseudo-element, so it stays thin while the target is a comfortable size. */
 .plp-hero__seek {
 	flex: 1 1 auto;
+	display: block;
 	width: 100%;
-	height: 5px;
+	height: 28px;
 	margin: 0;
 	padding: 0;
-	background: rgba( 255, 255, 255, 0.2 );
-	border-radius: 3px;
+	background: transparent;
 	-webkit-appearance: none;
 	appearance: none;
 	cursor: pointer;
+	/* Without this a drag along the slider scrolls the page on a touch screen
+	   instead of seeking. */
+	touch-action: none;
+}
+
+.plp-hero__seek::-webkit-slider-runnable-track {
+	height: 6px;
+	background: rgba( 255, 255, 255, 0.2 );
+	border-radius: 3px;
+}
+
+.plp-hero__seek::-moz-range-track {
+	height: 6px;
+	background: rgba( 255, 255, 255, 0.2 );
+	border-radius: 3px;
 }
 
 .plp-hero__seek::-webkit-slider-thumb {
-	width: 15px;
-	height: 15px;
+	width: 16px;
+	height: 16px;
+	/* (track height − thumb height) ÷ 2, which is what centres the thumb on the
+	   line now that the track has a height of its own. */
+	margin-top: -5px;
 	background: #fff;
 	border: 0;
 	border-radius: 50%;
@@ -417,11 +439,17 @@
 }
 
 .plp-hero__seek::-moz-range-thumb {
-	width: 15px;
-	height: 15px;
+	width: 16px;
+	height: 16px;
 	background: #fff;
 	border: 0;
 	border-radius: 50%;
+}
+
+.plp-hero__seek:focus-visible {
+	outline: 2px solid #fff;
+	outline-offset: 2px;
+	border-radius: 4px;
 }
 
 .plp-hero__controls {
@@ -1785,23 +1813,40 @@
 	font-variant-numeric: tabular-nums;
 }
 
+/* Same reasoning as the hero slider: the height is the hit area, and the visible
+   line is drawn on the track pseudo-element. This one was 4px tall. */
 .plp-bar input[type="range"] {
 	flex: 1 1 auto;
+	display: block;
 	width: 100%;
 	min-width: 60px;
-	height: 4px;
+	height: 26px;
 	margin: 0;
 	padding: 0;
-	background: rgba( 255, 255, 255, 0.25 );
-	border-radius: 2px;
+	background: transparent;
 	-webkit-appearance: none;
 	appearance: none;
 	cursor: pointer;
+	touch-action: none;
+}
+
+.plp-bar input[type="range"]::-webkit-slider-runnable-track {
+	height: 5px;
+	background: rgba( 255, 255, 255, 0.25 );
+	border-radius: 3px;
+}
+
+.plp-bar input[type="range"]::-moz-range-track {
+	height: 5px;
+	background: rgba( 255, 255, 255, 0.25 );
+	border-radius: 3px;
 }
 
 .plp-bar input[type="range"]::-webkit-slider-thumb {
-	width: 13px;
-	height: 13px;
+	width: 14px;
+	height: 14px;
+	/* (5 − 14) ÷ 2 */
+	margin-top: -4.5px;
 	background: #fff;
 	border: 0;
 	border-radius: 50%;
@@ -1810,16 +1855,24 @@
 }
 
 .plp-bar input[type="range"]::-moz-range-thumb {
-	width: 13px;
-	height: 13px;
+	width: 14px;
+	height: 14px;
 	background: #fff;
 	border: 0;
 	border-radius: 50%;
 }
 
+.plp-bar input[type="range"]:focus-visible {
+	outline: 2px solid #fff;
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
 .plp-bar__volume {
-	flex: 0 0 80px;
-	max-width: 80px;
+	/* Was 80px. A wider run means each pixel is a smaller step, so setting a
+	   particular level takes less precision. */
+	flex: 0 0 110px;
+	max-width: 110px;
 }
 
 /* ------------------------------------------------------------------
@@ -2006,6 +2059,41 @@
 	.plp-nav__item,
 	.plp-nav__more {
 		font-size: 0.8em;
+	}
+}
+
+/* Touch input, whatever the screen size — a tablet in landscape is wide and still
+   has no cursor. A fingertip covers far more than a mouse point, so the grabbable
+   band grows while the visible line stays exactly as thin as before. */
+@media ( pointer: coarse ) {
+	.plp-hero__seek {
+		height: 44px;
+	}
+
+	.plp-hero__seek::-webkit-slider-thumb {
+		width: 20px;
+		height: 20px;
+		margin-top: -7px;
+	}
+
+	.plp-hero__seek::-moz-range-thumb {
+		width: 20px;
+		height: 20px;
+	}
+
+	.plp-bar input[type="range"] {
+		height: 40px;
+	}
+
+	.plp-bar input[type="range"]::-webkit-slider-thumb {
+		width: 18px;
+		height: 18px;
+		margin-top: -6.5px;
+	}
+
+	.plp-bar input[type="range"]::-moz-range-thumb {
+		width: 18px;
+		height: 18px;
 	}
 }
 

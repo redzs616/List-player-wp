@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.10.0
+Stable tag: 1.10.1
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -65,6 +65,28 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Javítva (1.10.1 — a csúszkák megfoghatósága):
+
+Mindhárom csúszkának **maga a vékony vonal volt a fogható területe**: a kiemelt
+panelé 5 képpont, az alsó sávé és a hangerőé 4 képpont magas. Ujjal ezt eltalálni
+gyakorlatilag lehetetlen volt. Ez elnézés volt, nem szándék — hiányzott a
+`::-webkit-slider-runnable-track` szabály, így a látható vonal maga az input volt.
+
+* A vékony vonal átkerült a track pszeudo-elemre, tehát **a látvány változatlan**,
+  de a fogható sáv magas lett: kiemelt panel 5 → **28 képpont**, alsó sáv és
+  hangerő 4 → **26 képpont**.
+* **Érintőképernyőn 44, illetve 40 képpont** — a 44 pont az ajánlott minimum
+  érintőcélpont. Ez nem képernyőméret szerint dől el, hanem beviteli mód szerint
+  (`pointer: coarse`), tehát egy fekvő tablet is megkapja.
+* A gomb 15 → 16, érintésnél 20 képpontra nőtt.
+* **A csúszka húzása többé nem görgeti az oldalt** telefonon (`touch-action`).
+  Eddig egy vízszintes húzás könnyen függőleges görgetésbe csúszott át.
+* A hangerő 80 → **110 képpont széles**, tehát egy adott hangerő beállítása
+  kevesebb pontosságot kíván.
+* A fejezetjelölők pontosan a vonal közepére kerültek. A csúszka sorbeli
+  elhelyezése miatt volt egy pár képpontos elcsúszás.
+* Billentyűzettel fókuszálva mostantól látszik a fókuszkeret.
 
 Elkészült (1.10.0 — válogatott listák egy oldalon, és a hozzáadás panel):
 
