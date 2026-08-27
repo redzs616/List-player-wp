@@ -54,6 +54,21 @@ Minden új verzió kiadása:
    megbízhatóbb út, mert a ZIP-ben a mappanév pontosan `pl-player`
 5. Publish release
 
+A ZIP-et **így** kell elkészíteni:
+
+    git archive --format=zip --prefix=pl-player/ -o pl-player.zip v1.2.3
+
+FONTOS: a Windows PowerShell `Compress-Archive` parancsa **nem használható**.
+Az visszaperjelet ír útvonal-elválasztónak (`pl-player\pl-player.php`), a ZIP
+szabvány viszont perjelet ír elő. Linux szerveren a PHP az ilyen bejegyzést nem
+könyvtárnak érti, hanem egyetlen furcsa nevű fájlnak — a frissítés ilyenkor
+törli a régi könyvtárat, kicsomagol valami használhatatlant, és a bővítmény
+eltűnik. Ellenőrzés a csomagoláskor:
+
+    unzip -l pl-player.zip | grep -c '\\'
+
+Ha ez nem nullát ad, a csomag hibás, ne add ki.
+
 A WordPress 6 óránként ellenőriz. Azonnali ellenőrzéshez: Beállítások →
 **Keresés most**.
 

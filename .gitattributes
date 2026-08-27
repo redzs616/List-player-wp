@@ -1,0 +1,7 @@
+# Kept out of the distributed plugin package.
+.gitignore      export-ignore
+.gitattributes  export-ignore
+
+# Normalise line endings in the repository, so a Windows checkout does not turn
+# every file into a diff.
+* text=auto
