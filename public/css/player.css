@@ -153,15 +153,50 @@
  * designed rather than as a list with a big picture on it.
  * --------------------------------------------------------------- */
 
+/* The panel's own background. Two off-centre colour washes keyed to the track's hue
+   sit over a dark diagonal base, so the panel takes on the colour of whatever is
+   playing instead of being a flat slab. The second wash is offset around the colour
+   wheel from the first, which is what stops it reading as one even tint. */
 .plp-hero {
 	position: relative;
 	margin: 0 0 18px;
 	overflow: hidden;
 	border: 1px solid rgba( 255, 255, 255, 0.1 );
 	border-radius: 18px;
-	background: #101216;
+	background:
+		radial-gradient(
+			130% 105% at 12% -12%,
+			hsl( var( --plp-hue, 250 ) 64% 36% / 0.6 ),
+			transparent 62%
+		),
+		radial-gradient(
+			115% 95% at 96% 6%,
+			hsl( calc( var( --plp-hue, 250 ) + 48 ) 58% 32% / 0.42 ),
+			transparent 58%
+		),
+		linear-gradient( 165deg, #1b2029 0%, #0d0f14 64% );
 	color: #f3f5f8;
+	/* A lit top edge and a shadow underneath: the panel sits on the page rather than
+	   being painted onto it. */
+	box-shadow:
+		inset 0 1px 0 rgba( 255, 255, 255, 0.09 ),
+		0 18px 40px -24px rgba( 0, 0, 0, 0.85 );
 	isolation: isolate;
+}
+
+/* Film grain. Large smooth gradients band badly on 8-bit screens; a trace of noise
+   breaks the bands up. Generated inline, so it costs no request. */
+.plp-hero::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	/* Same layer as the scrim and above it by tree order, so the grain textures the
+	   background without dulling the equalizer or the text on top. */
+	z-index: 0;
+	background-image: url( "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E" );
+	opacity: 0.055;
+	pointer-events: none;
+	mix-blend-mode: overlay;
 }
 
 .plp-hero__backdrop {
@@ -175,19 +210,26 @@
 	background-position: center;
 	background-size: cover;
 	filter: blur( 44px ) saturate( 1.5 );
-	opacity: 0.55;
+	/* Eased back from 0.55: the panel now has colour of its own underneath, and the
+	   blurred cover is there to tint it, not to replace it. */
+	opacity: 0.42;
 	transform: scale( 1.15 );
 	transition: background-color 200ms ease;
 }
 
 /* The darkening wash lives here rather than on the content layer, so the equalizer
    above it is not looked at through a 70% black sheet. */
+/* The legibility scrim. Deliberately uneven rather than a flat wash: heaviest at the
+   bottom and along the left, which is where the title, artist and controls sit, and
+   lightest towards the top right, so the panel's colour is not smothered. */
 .plp-hero::before {
 	content: "";
 	position: absolute;
 	inset: 0;
 	z-index: 0;
-	background: linear-gradient( 135deg, rgba( 10, 12, 16, 0.62 ), rgba( 10, 12, 16, 0.82 ) );
+	background:
+		linear-gradient( 180deg, rgba( 8, 10, 14, 0.28 ) 0%, rgba( 8, 10, 14, 0.66 ) 100% ),
+		linear-gradient( 95deg, rgba( 8, 10, 14, 0.58 ) 0%, rgba( 8, 10, 14, 0.12 ) 72% );
 	pointer-events: none;
 }
 

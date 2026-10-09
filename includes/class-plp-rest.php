@@ -50,6 +50,14 @@ class PLP_Rest {
 						'type'        => 'string',
 						'default'     => '',
 					),
+					// Named tracks, whatever the filters say. A shared link has to be able
+					// to open its track even when the page it lands on is showing a
+					// different category, a search, or a later page of results.
+					'include'   => array(
+						'description' => __( 'Csak ezek a poszt azonosítók, vesszővel.', 'pl-player' ),
+						'type'        => 'string',
+						'default'     => '',
+					),
 					'search'    => array(
 						'type'    => 'string',
 						'default' => '',
@@ -309,6 +317,15 @@ class PLP_Rest {
 
 		if ( $playlist ) {
 			$config['include'] = PLP_Playlist::track_ids( $playlist );
+		}
+
+		// Applied last, so a directly named track wins over the playlist and the
+		// filters. This is what lets a shared link find its track on a page that is
+		// currently showing something else entirely.
+		$named = self::ids( (string) $request->get_param( 'include' ) );
+
+		if ( $named ) {
+			$config['include'] = $named;
 		}
 
 		$args = PLP_Source::query_args( $config );

@@ -428,8 +428,106 @@
 	 * tracking scripts of ours. Desktop browsers mostly lack it, so there the link goes
 	 * to the clipboard instead.
 	 */
+	/**
+	 * The address that opens this track in this player, on this page.
+	 *
+	 * Not the track's own page. Sharing a link that takes the recipient somewhere
+	 * else — away from the playlist, the search or the panel the sender was actually
+	 * using — is the wrong thing to send. Whatever is already in the query string is
+	 * kept, so a shared playlist view stays a playlist view.
+	 */
+	function shareUrl( item ) {
+		var id = item.getAttribute( 'data-id' );
+
+		if ( ! id ) {
+			return item.getAttribute( 'data-url' ) || '';
+		}
+
+		try {
+			var url = new URL( window.location.href );
+
+			url.searchParams.set( 'plp_track', id );
+			url.hash = '';
+
+			return url.toString();
+		} catch ( error ) {
+			// No URL constructor: fall back to the track's page rather than nothing.
+			return item.getAttribute( 'data-url' ) || '';
+		}
+	}
+
+	/**
+	 * The track id a shared link asked for, if any.
+	 */
+	function sharedTrackId() {
+		try {
+			var id = new URL( window.location.href ).searchParams.get( 'plp_track' ) || '';
+
+			// Numeric only. It goes into a selector below, and it is worth being sure.
+			return /^\d+$/.test( id ) ? id : '';
+		} catch ( error ) {
+			return '';
+		}
+	}
+
+	/**
+	 * Opens the track a shared link points at.
+	 *
+	 * The track may not be among the rows on screen — the link can land on a page
+	 * showing a different category, a search, or an earlier page of results — so if it
+	 * is missing it gets fetched by id and put at the top of the list.
+	 */
+	var sharedHandled = false;
+
+	function openSharedTrack( list ) {
+		var id = sharedTrackId();
+
+		// Two players can share a page. The link names one track, so the first player
+		// takes it; without this the second would insert a duplicate row and steal the
+		// selection back.
+		if ( ! id || sharedHandled ) {
+			return;
+		}
+
+		sharedHandled = true;
+
+		var present = q( '.plp-track[data-id="' + id + '"]', list );
+
+		if ( present ) {
+			revealShared( present, list );
+
+			return;
+		}
+
+		request( '/tracks', { include: id, per_page: 1 } ).then( function ( data ) {
+			var track = ( data.tracks || [] )[0];
+			var listing = q( '.plp-list', list );
+
+			if ( ! track || ! listing ) {
+				return;
+			}
+
+			var item = buildItem( track, !! config( list ).showStats );
+
+			listing.insertBefore( item, listing.firstChild );
+			loadCounters( list );
+			probeRights( list );
+			revealShared( item, list );
+		} ).catch( function () {
+			announce( list, PLPlayer.i18n.sharedMissing );
+		} );
+	}
+
+	function revealShared( item, list ) {
+		select( item, list, true );
+
+		if ( item.scrollIntoView ) {
+			item.scrollIntoView( { block: 'center' } );
+		}
+	}
+
 	function shareTrack( item, list ) {
-		var url = item.getAttribute( 'data-url' );
+		var url = shareUrl( item );
 
 		if ( ! url ) {
 			return;
@@ -720,6 +818,13 @@
 			hero.coverEmpty.hidden = !! cover;
 			hero.coverEmpty.style.setProperty( '--plp-hue', hue );
 			hero.coverEmpty.textContent = item.getAttribute( 'data-initial' ) || '';
+		}
+
+		// On the panel itself, not only on the blurred layer: the panel's own gradients
+		// key off it too, so the whole background shifts with the track rather than
+		// just the blur behind it.
+		if ( hero.root ) {
+			hero.root.style.setProperty( '--plp-hue', hue );
 		}
 
 		if ( hero.backdrop ) {
@@ -2451,8 +2556,10 @@
 		}
 
 		// With a hero panel there has to be something for its controls to act on before
-		// the visitor picks a track, so the first one is selected without playing.
-		if ( hero && ! currentItem ) {
+		// the visitor picks a track, so the first one is selected without playing. A
+		// shared link names its own track, and that takes precedence — preselecting the
+		// first one here would only be undone a moment later.
+		if ( hero && ! currentItem && ! sharedTrackId() ) {
 			var first = queueOf( list )[0];
 
 			if ( first ) {
@@ -2467,6 +2574,7 @@
 
 		loadCounters( list );
 		probeRights( list );
+		openSharedTrack( list );
 	}
 
 	function wireBar() {

@@ -346,7 +346,9 @@ class PLP_Renderer {
 			$backdrop .= 'background-image:url(' . esc_url( $cover ) . ');';
 		}
 		?>
-		<div class="plp-hero" data-plp-hero>
+		<?php // Also on the panel, because its own gradients key off the hue — not just
+			// the blurred layer behind them. ?>
+		<div class="plp-hero" data-plp-hero style="--plp-hue:<?php echo esc_attr( (string) $hue ); ?>">
 			<span class="plp-hero__backdrop" aria-hidden="true" style="<?php echo esc_attr( $backdrop ); ?>"></span>
 
 			<?php if ( 'no' !== $equalizer ) : ?>

@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.11.0
+Stable tag: 1.12.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -80,6 +80,42 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.12.0 — megosztás a lejátszóba, és designolt háttér):
+
+**A megosztás eddig a szám saját oldalára mutatott**, nem oda, ahol hallgatod.
+Aki megkapta a linket, elkerült a lejátszódtól — a listából, a keresésből, a
+panelből, amit épp használtál. Mostantól a megosztás **a lejátszó oldalát** adja,
+azzal a számmal elindítva.
+
+* A link a jelenlegi oldal címe kiegészítve a szám azonosítójával, például
+  `/zenelejatszo/?plp_track=684086`.
+* **A meglévő paraméterek megmaradnak**, tehát ha egy lejátszási listát nézel, a
+  megosztott link is azt a listát nyitja meg:
+  `?plp_list=nyari-mix&plp_track=303`
+* A link megnyitásakor a lejátszó **azt a számot választja ki**, nem az elsőt, és
+  odagörget. A böngésző gesztus nélkül nem mindig engedi magától elindulni — ilyenkor
+  a lejátszó kiírja, hogy koppints rá.
+* Ha a megosztott szám **nincs a listában** — mert a link másik kategóriát, keresést
+  vagy egy későbbi oldalt mutat —, a lejátszó lekéri azonosító alapján, és a lista
+  tetejére teszi. Új `include` paraméter a `tracks` végponton.
+* Ha két lejátszó van egy oldalon, csak az első kezeli a linket; a második nem szúr
+  be duplikált sort.
+
+Új: **designolt háttér a kiemelt panelen.** Eddig egy lapos sötét felület volt a
+homályosított borítóval. Mostantól:
+
+* két eltolt színfolt, a **szám saját színére hangolva** — így a panel felveszi
+  annak a felvételnek a színét, ami épp szól. A második folt el van forgatva a
+  színkörön, ettől nem egyszínű fátyolnak látszik.
+* finom **filmszemcse**, ami megtöri a nagy színátmenetek sávosodását 8 bites
+  kijelzőn. Beágyazott, tehát nem kér külön fájlt.
+* megvilágított felső él és vetett árnyék, így a panel **ráül** az oldalra, nem
+  pedig rá van festve
+* az olvashatósági fátyol szándékosan egyenetlen: lent és balra erősebb, ahol a
+  cím és a gombok vannak, jobbra fent világosabb — így a szín nem fullad meg
+* a homályosított borító 0,55-ről 0,42-re halkult, mert a panelnek már van saját
+  színe alatta
 
 Javítva (1.11.0 — a csúszka megakadása, és kattintható fejezetek):
 

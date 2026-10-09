@@ -1,6 +1,6 @@
 # Lejátszási Lista Player
 
-![Verzió](https://img.shields.io/badge/verzió-1.11.0-blue)
+![Verzió](https://img.shields.io/badge/verzió-1.12.0-blue)
 ![WordPress](https://img.shields.io/badge/WordPress-6.0%2B-21759b)
 ![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)
 ![Licenc](https://img.shields.io/badge/licenc-GPL--2.0%2B-green)
@@ -163,7 +163,23 @@ telefonon rögtön ott van a Messenger, WhatsApp és minden, amit a látogató h
 harmadik féltől származó gombok és követőszkriptek nélkül. Asztali böngészőkben ez
 általában nincs meg, ott a link a **vágólapra** kerül, és a lejátszó visszajelzi.
 
-Amit megoszt, az a szám **saját oldala** (`/zene/...`), nem az, ahol épp a lejátszó áll.
+Amit megoszt, az **a lejátszó oldala azzal a számmal elindítva** — nem a szám külön
+oldala. Aki megkapja a linket, pontosan oda érkezik, ahol te hallgatod: ugyanabba a
+listába, ugyanabba a keresésbe, ugyanabba a panelbe.
+
+```
+/zenelejatszo/?plp_track=684086
+/zenelejatszo/?plp_list=nyari-mix&plp_track=303
+```
+
+A címben már meglévő paraméterek megmaradnak, tehát egy lejátszási listából megosztott
+link is a listát nyitja meg. A link megnyitásakor a lejátszó kiválasztja azt a számot
+és odagörget; a böngésző gesztus nélkül nem mindig engedi magától elindulni, ilyenkor a
+lejátszó kiírja, hogy koppints rá.
+
+Ha a megosztott szám **nincs a listában** — mert a link másik kategóriát, keresést vagy
+egy későbbi oldalt mutat —, a lejátszó lekéri azonosító alapján és a lista tetejére
+teszi, hogy a link akkor is működjön.
 
 ## Saját lejátszási listák
 
@@ -474,7 +490,7 @@ Névtér: `plplayer/v1`
 
 | Metódus | Végpont | Leírás |
 |---|---|---|
-| `GET` | `/tracks` | Lista. Paraméterek: `terms`, `playlist`, `post_type`, `search`, `orderby`, `order`, `page`, `per_page` |
+| `GET` | `/tracks` | Lista. Paraméterek: `terms`, `playlist`, `include`, `post_type`, `search`, `orderby`, `order`, `page`, `per_page`. Az `include` néven megadott számok a szűrők fölött érvényesülnek — ez teszi lehetővé, hogy egy megosztott link megtalálja a saját számát. |
 | `GET` | `/categories` | Kategóriafa minden bevont taxonómiából |
 | `GET` | `/counters?ids=1,2,3` | Számlálók és a látogató kedvelés-állapota |
 | `GET` | `/me?ids=1,2,3` | Mit tehet a kérő: be van-e jelentkezve, és a felsoroltak közül melyiket szerkesztheti |
