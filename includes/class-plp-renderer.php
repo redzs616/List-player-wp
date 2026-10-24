@@ -101,9 +101,9 @@ class PLP_Renderer {
 			// `always` overrides the visitor's reduced-motion preference. Worth having
 			// as an explicit opt-in: an equalizer is the feature itself, not decorative
 			// chrome, so some owners will want it regardless.
-			'equalizer'  => 'always' === strtolower( (string) $atts['equalizer'] )
-				? 'always'
-				: ( self::is_yes( $atts['equalizer'] ) ? 'yes' : 'no' ),
+			// `always` overrides a reduced-motion preference; `hero` keeps the old
+			// compact version inside the panel instead of the page-wide ambient one.
+			'equalizer'  => self::equalizer_mode( (string) $atts['equalizer'] ),
 		);
 	}
 
@@ -115,6 +115,26 @@ class PLP_Renderer {
 	 */
 	private static function is_yes( $value ) {
 		return in_array( strtolower( (string) $value ), array( 'yes', '1', 'true', 'on' ), true );
+	}
+
+	/**
+	 * Normalises the `equalizer` attribute.
+	 *
+	 * `yes` and `always` both mean the page-wide ambient visualiser now; `always` adds
+	 * that it should run even for a visitor who asked for reduced motion. `hero` asks
+	 * for the older compact version inside the panel.
+	 *
+	 * @param string $value Raw attribute.
+	 * @return string One of no, hero, yes, always.
+	 */
+	private static function equalizer_mode( $value ) {
+		$value = strtolower( trim( $value ) );
+
+		if ( in_array( $value, array( 'always', 'hero' ), true ) ) {
+			return $value;
+		}
+
+		return self::is_yes( $value ) ? 'yes' : 'no';
 	}
 
 	/**
@@ -354,7 +374,10 @@ class PLP_Renderer {
 			<?php if ( 'no' !== $equalizer ) : ?>
 				<?php // Driven by the actual audio through the Web Audio API. Hidden until
 					// there is real signal to draw, so a silent canvas never sits there. ?>
+				<?php // Rendered even in ambient mode, where it stays hidden and simply
+					// carries the shortcode's settings for the script to read. ?>
 				<canvas class="plp-hero__eq" data-plp-eq aria-hidden="true" hidden
+					data-plp-eq-where="<?php echo 'hero' === $equalizer ? 'hero' : 'ambient'; ?>"
 					data-plp-eq-force="<?php echo 'always' === $equalizer ? '1' : '0'; ?>"></canvas>
 			<?php endif; ?>
 
@@ -1073,6 +1096,12 @@ class PLP_Renderer {
 			return;
 		}
 		?>
+		<?php // The ambient visualiser: one canvas for the whole page, pinned to the
+			// bottom of the viewport and sitting behind everything. In the panel it was
+			// a small rectangle competing with the title for attention; down here it
+			// reads as the page breathing with the music. ?>
+		<canvas class="plp-ambient" id="plp-ambient" aria-hidden="true" hidden></canvas>
+
 		<div class="plp-bar" id="plp-bar" hidden>
 			<div class="plp-bar__inner">
 

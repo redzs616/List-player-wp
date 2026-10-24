@@ -827,6 +827,10 @@
 			hero.root.style.setProperty( '--plp-hue', hue );
 		}
 
+		// The ambient visualiser takes the same colour, so the bars at the foot of the
+		// page belong to whatever is playing rather than being a fixed green.
+		viz.hue = parseInt( hue, 10 ) || 250;
+
 		if ( hero.backdrop ) {
 			// The hue always applies; a cover image just layers over it.
 			hero.backdrop.style.setProperty( '--plp-hue', hue );
@@ -1478,13 +1482,40 @@
 		data: null,
 		frame: null,
 		flatFrames: 0,
-		failed: false
+		failed: false,
+		// Smoothed bar levels, so the meter falls instead of strobing.
+		levels: null,
+		// Follows the playing track, which is what ties the visualiser to the panel.
+		hue: 250
 	};
 
 	var reducedMotion = window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
 
+	/**
+	 * The canvas the visualiser draws on.
+	 *
+	 * The page-level ambient canvas wins when it is there. The old in-panel canvas
+	 * stays supported for `equalizer="hero"`, because someone may want the compact
+	 * version inside the panel rather than across the page.
+	 */
 	function eqCanvas() {
+		var ambient = q( '#plp-ambient' );
+
+		if ( ambient && ! heroEqForced() ) {
+			return ambient;
+		}
+
 		return currentList ? q( '[data-plp-eq]', currentList ) : null;
+	}
+
+	function heroEqForced() {
+		var panel = currentList ? q( '[data-plp-eq]', currentList ) : null;
+
+		return !! ( panel && 'hero' === panel.getAttribute( 'data-plp-eq-where' ) );
+	}
+
+	function isAmbient( canvas ) {
+		return !! ( canvas && 'plp-ambient' === canvas.id );
 	}
 
 	/**
@@ -1501,9 +1532,11 @@
 			return true;
 		}
 
-		var canvas = eqCanvas();
+		// The setting lives on the panel's canvas, because that is where the shortcode
+		// wrote it. The ambient canvas is page-level and carries no shortcode of its own.
+		var settings = currentList ? q( '[data-plp-eq]', currentList ) : null;
 
-		return !! ( canvas && '1' === canvas.getAttribute( 'data-plp-eq-force' ) );
+		return !! ( settings && '1' === settings.getAttribute( 'data-plp-eq-force' ) );
 	}
 
 	function ensureAnalyser() {
@@ -1595,10 +1628,56 @@
 		g.setTransform( ratio, 0, 0, ratio, 0, 0 );
 		g.clearRect( 0, 0, width, height );
 
-		var styles = getComputedStyle( currentList );
-		var low = styles.getPropertyValue( '--plp-eq-low' ).trim() || '#35d07f';
-		var mid = styles.getPropertyValue( '--plp-eq-mid' ).trim() || '#f5c542';
-		var high = styles.getPropertyValue( '--plp-eq-high' ).trim() || '#e8453c';
+		if ( isAmbient( canvas ) ) {
+			drawAmbientFrame( g, width, height );
+		} else {
+			drawPanelFrame( g, width, height );
+		}
+
+		viz.frame = window.requestAnimationFrame( drawEq );
+	}
+
+	/**
+	 * One bar's level, smoothed.
+	 *
+	 * Raw frame-to-frame values jump hard enough to read as flicker — which is what
+	 * the panel version did. Attack stays immediate so a beat still lands, but the
+	 * fall is slowed, the way a real meter behaves.
+	 */
+	function levelAt( index, count ) {
+		// The top of the spectrum is mostly empty on music and would leave a dead tail.
+		var bin = Math.floor( ( index / count ) * ( viz.data.length * 0.72 ) );
+
+		// A single bin rarely fills to 255 on real music, so without a little headroom
+		// the top of the range would never be reached at all.
+		var target = Math.min( 1, ( viz.data[ bin ] / 255 ) * 1.35 );
+
+		if ( ! viz.levels || viz.levels.length !== count ) {
+			viz.levels = new Float32Array( count );
+		}
+
+		var falling = viz.levels[ index ] * 0.88;
+
+		viz.levels[ index ] = target > falling ? target : falling;
+
+		return viz.levels[ index ];
+	}
+
+	function ladderColours() {
+		var styles = getComputedStyle( currentList || document.body );
+
+		return {
+			low: styles.getPropertyValue( '--plp-eq-low' ).trim() || '#1fe06b',
+			mid: styles.getPropertyValue( '--plp-eq-mid' ).trim() || '#ffcf1a',
+			high: styles.getPropertyValue( '--plp-eq-high' ).trim() || '#ff3b2f'
+		};
+	}
+
+	/**
+	 * The compact in-panel version, kept for `equalizer="hero"`.
+	 */
+	function drawPanelFrame( g, width, height ) {
+		var colours = ladderColours();
 
 		// One gradient spanning the full height, so a bar's colour is decided by how far
 		// it reaches rather than by which bar it is: quiet stays green, louder passes
@@ -1606,11 +1685,11 @@
 		// it reads at a glance without a legend.
 		var ladder = g.createLinearGradient( 0, height, 0, 0 );
 
-		ladder.addColorStop( 0, low );
-		ladder.addColorStop( 0.55, low );
-		ladder.addColorStop( 0.72, mid );
-		ladder.addColorStop( 0.88, mid );
-		ladder.addColorStop( 1, high );
+		ladder.addColorStop( 0, colours.low );
+		ladder.addColorStop( 0.55, colours.low );
+		ladder.addColorStop( 0.72, colours.mid );
+		ladder.addColorStop( 0.88, colours.mid );
+		ladder.addColorStop( 1, colours.high );
 
 		g.fillStyle = ladder;
 
@@ -1618,23 +1697,102 @@
 		var slot = width / bars;
 		var barWidth = Math.max( 2, slot - 2 );
 
-		for ( i = 0; i < bars; i++ ) {
-			// Skip the very top of the spectrum: it is mostly empty on music and would
-			// leave a dead flat tail on the right.
-			var bin = Math.floor( ( i / bars ) * ( viz.data.length * 0.72 ) );
+		for ( var i = 0; i < bars; i++ ) {
+			var barHeight = Math.max( 1, levelAt( i, bars ) * height );
 
-			// A single frequency bin rarely fills to 255 on real music, so without a
-			// little headroom the red band would never be reached at all.
-			var value = Math.min( 1, ( viz.data[ bin ] / 255 ) * 1.35 );
-			var barHeight = Math.max( 1, value * height );
-
-			g.globalAlpha = 0.5 + ( value * 0.5 );
 			g.fillRect( i * slot + ( slot - barWidth ) / 2, height - barHeight, barWidth, barHeight );
 		}
+	}
 
+	/**
+	 * The ambient version: a ring of bars seen in perspective, turning slowly.
+	 *
+	 * The ring's centre sits below the bottom of the screen, so only its far arc rises
+	 * into view — that is what makes it read as coming up out of the page edge rather
+	 * than as a widget stuck to it. Bars are drawn back to front and both shrink and dim
+	 * with distance, and that is the whole of the 3D: no library, no WebGL, just the
+	 * projection done by hand.
+	 */
+	function drawAmbientFrame( g, width, height ) {
+		// Fewer bars than the panel version on purpose: at this size thin ones read as
+		// scratchy noise rather than as a shape.
+		var bars = 54;
+		var hue = viz.hue;
+		var colours = ladderColours();
+
+		// Tied to the clock rather than to the frame count, so it turns at the same
+		// speed on a 60 Hz screen and on a 144 Hz one.
+		var spin = ( ( Date.now() % 52000 ) / 52000 ) * Math.PI * 2;
+
+		var cx = width / 2;
+		// Just below the bottom edge, so a good part of the ring is in view. Pushed
+		// further down it degenerates into a single row of bars and the depth is lost.
+		var cy = height * 1.04;
+		var rx = width * 0.6;
+		var ry = height * 0.3;
+		var tallest = height * 0.82;
+
+		var points = [];
+		var i;
+
+		for ( i = 0; i < bars; i++ ) {
+			var angle = ( ( i / bars ) * Math.PI * 2 ) + spin;
+			var depth = Math.sin( angle );
+
+			points.push( {
+				x: cx + ( rx * Math.cos( angle ) ),
+				y: cy + ( ry * depth ),
+				depth: depth,
+				value: levelAt( i, bars )
+			} );
+		}
+
+		// Far bars first, so the near ones overlap them.
+		points.sort( function ( a, b ) {
+			return a.depth - b.depth;
+		} );
+
+		// A soft bloom is most of what separates this from a bar chart. Set once rather
+		// than per bar, because changing shadow state is the expensive part.
+		g.shadowBlur = 18;
+		g.lineCap = 'round';
+
+		for ( i = 0; i < points.length; i++ ) {
+			var point = points[ i ];
+			// 0 at the back of the ring, 1 at the front.
+			var near = ( point.depth + 1 ) / 2;
+			var scale = 0.5 + ( near * 0.5 );
+			var barHeight = Math.max( 3, point.value * tallest * scale );
+			var barWidth = Math.max( 3, ( width / bars ) * 0.62 * scale );
+			var top = point.y - barHeight;
+
+			var peak = point.value > 0.88;
+			var warm = point.value > 0.7;
+			var tip = peak ? colours.high : ( warm ? colours.mid : 'hsl(' + ( hue + 30 ) + ' 90% 74%)' );
+
+			var shaft = g.createLinearGradient( 0, point.y, 0, top );
+
+			shaft.addColorStop( 0, 'hsl(' + hue + ' 80% 48%)' );
+			shaft.addColorStop( 0.65, 'hsl(' + hue + ' 85% 62%)' );
+			shaft.addColorStop( 1, tip );
+
+			g.strokeStyle = shaft;
+			g.shadowColor = tip;
+			g.lineWidth = barWidth;
+			// Distance dims as well as shrinks. Without this the far arc reads as a
+			// second row of equally loud bars instead of as depth.
+			g.globalAlpha = 0.34 + ( near * 0.5 );
+
+			// Stroked with a round cap rather than filled: the cap gives each bar a
+			// lit tip, which is what makes the ring look like objects and not ticks.
+			g.beginPath();
+			g.moveTo( point.x, point.y );
+			g.lineTo( point.x, top );
+			g.stroke();
+		}
+
+		g.shadowBlur = 0;
 		g.globalAlpha = 1;
-
-		viz.frame = window.requestAnimationFrame( drawEq );
 	}
 
 	/**

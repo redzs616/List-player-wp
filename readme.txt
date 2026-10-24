@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.12.0
+Stable tag: 1.13.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -80,6 +80,37 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.13.0 — ambiens vizualizáció, és közzétehető kézikönyv):
+
+**Az ekvalizér elköltözött a panelből.** Ott egy kis téglalapként ült a cím mellett,
+csak a bal oldalon jelent meg, és villogott. Mostantól az egész oldal alján fut,
+a tartalom mögött:
+
+* **A képernyő aljáról emelkedik fel**, teljes szélességben, felfelé elhalványodva —
+  nincs kemény felső éle, beleolvad az oldalba.
+* **Enyhe perspektívában forgó gyűrű.** A sávok egy ellipszis mentén állnak, aminek a
+  középpontja a képernyő alja alatt van, és lassan körbefordul. A hátul lévő sávok
+  kisebbek és halványabbak, az elöl lévők nagyobbak és világosabbak — ez adja a
+  térhatást. Nincs hozzá külső könyvtár, a vetítés kézzel van kiszámolva.
+* **A villogás megszűnt.** A sávok mostantól gyorsan felugranak, de lassan esnek
+  vissza, ahogy egy igazi műszer — korábban képkockánként ugrált a teljes érték.
+  Mérve: a képkockánkénti ingadozás 100%-ról 8%-ra csökkent.
+* Lekerekített, izzó sávok, a szóló szám színére hangolva — ugyanaz a szín, ami a
+  kiemelt panel hátterét is adja.
+* Csökkentett mozgást kérő látogatónál nem fut.
+* A régi, panelen belüli változat megmaradt: `equalizer="hero"`.
+
+Új: **közzétehető kézikönyv.** A teljes leírás — minden shortcode, paraméter és
+beállítás — mostantól oldalként kitehető az oldaladra.
+
+* Új `[playlist_manual]` shortcode, ami a telepített verzióhoz igazodva rendereli a
+  kézikönyvet. Nem avul el a frissítésekkel, mert a tartalmat a bővítmény adja.
+* Új **Lejátszó → Kézikönyv** admin oldal: egy kattintással létrehozza az oldalt, és
+  be is teszi a kiválasztott menükbe (fejléc, lábléc, bármelyik).
+* Az oldal alapból **privát** — csak bejelentkezve látható, és a menüben is csak annak
+  jelenik meg, aki jogosult elolvasni. A látogatók nem látják.
+* Saját, témafüggetlen stílus, hogy bármelyik sablonban ugyanúgy nézzen ki.
 
 Elkészült (1.12.0 — megosztás a lejátszóba, és designolt háttér):
 

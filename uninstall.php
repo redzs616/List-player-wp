@@ -74,4 +74,7 @@ if ( $plp_cron ) {
 delete_option( 'plp_settings' );
 delete_option( 'plp_db_version' );
 delete_option( 'plp_last_compaction' );
+// Only the pointer. The handbook page itself is a page the owner made and may have
+// edited, so removing it is their call, not ours.
+delete_option( 'plp_manual_page' );
 delete_site_transient( 'plp_github_release' );

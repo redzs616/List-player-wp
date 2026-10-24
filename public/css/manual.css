@@ -1,0 +1,277 @@
+/**
+ * The handbook page.
+ *
+ * Self-contained on purpose: it has to look the same whatever theme it lands in, so
+ * nothing here inherits colour or spacing from the page around it. Every value is a
+ * variable, so one override at the top changes the whole document.
+ */
+
+.plpm {
+	--plpm-bg: #15171c;
+	--plpm-panel: #1b1e25;
+	--plpm-code: #121419;
+	--plpm-border: #2a2f3a;
+	--plpm-text: #e4e8ef;
+	--plpm-muted: #9aa3b2;
+	--plpm-accent: #f0a12e;
+	--plpm-tag: #ff7a59;
+	--plpm-attr: #7ec9ff;
+	--plpm-value: #b6e36a;
+	--plpm-radius: 10px;
+
+	max-width: 960px;
+	margin: 0 auto;
+	padding: 34px 26px 54px;
+	background: var( --plpm-bg );
+	border-radius: 14px;
+	color: var( --plpm-text );
+	font-size: 16px;
+	line-height: 1.65;
+	/* The theme's own font is fine for prose; only code gets a fixed stack. */
+	text-align: left;
+}
+
+.plpm *,
+.plpm *::before,
+.plpm *::after {
+	box-sizing: border-box;
+}
+
+/* --- Head --- */
+
+.plpm__eyebrow {
+	margin: 0 0 6px;
+	color: var( --plpm-muted );
+	font-size: 12px;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.plpm__h1 {
+	margin: 0 0 10px;
+	color: #fff;
+	font-size: 30px;
+	line-height: 1.22;
+}
+
+.plpm__lead {
+	margin: 0 0 8px;
+	color: var( --plpm-muted );
+	font-size: 15px;
+}
+
+.plpm__head {
+	margin-bottom: 34px;
+	padding-bottom: 22px;
+	border-bottom: 1px solid var( --plpm-border );
+}
+
+/* --- Headings --- */
+
+.plpm__h2 {
+	margin: 42px 0 14px;
+	padding-bottom: 10px;
+	color: #fff;
+	font-size: 22px;
+	line-height: 1.3;
+	border-bottom: 1px solid var( --plpm-border );
+	/* An anchored heading must not hide under a sticky site header. */
+	scroll-margin-top: 90px;
+}
+
+.plpm__h3 {
+	margin: 26px 0 8px;
+	color: #fff;
+	font-size: 17px;
+}
+
+/* --- Prose --- */
+
+.plpm__p {
+	margin: 0 0 14px;
+}
+
+.plpm__muted {
+	color: var( --plpm-muted );
+}
+
+.plpm__list,
+.plpm__steps {
+	margin: 0 0 16px;
+	padding-left: 0;
+	list-style: none;
+}
+
+.plpm__list li {
+	position: relative;
+	margin-bottom: 8px;
+	padding-left: 20px;
+}
+
+.plpm__list li::before {
+	content: "";
+	position: absolute;
+	top: 0.62em;
+	left: 4px;
+	width: 6px;
+	height: 6px;
+	background: var( --plpm-accent );
+	border-radius: 50%;
+}
+
+.plpm__steps {
+	counter-reset: plpm-step;
+}
+
+.plpm__steps li {
+	position: relative;
+	margin-bottom: 12px;
+	padding-left: 40px;
+	counter-increment: plpm-step;
+}
+
+.plpm__steps li::before {
+	content: counter( plpm-step );
+	position: absolute;
+	top: 0.12em;
+	left: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	background: var( --plpm-panel );
+	border: 1px solid var( --plpm-border );
+	border-radius: 6px;
+	color: var( --plpm-muted );
+	font-size: 13px;
+	font-weight: 600;
+}
+
+/* --- Code --- */
+
+.plpm__code {
+	margin: 0 0 18px;
+	padding: 18px 20px;
+	overflow-x: auto;
+	background: var( --plpm-code );
+	border-left: 3px solid var( --plpm-accent );
+	border-radius: 0 var( --plpm-radius ) var( --plpm-radius ) 0;
+	font-size: 13.5px;
+	line-height: 1.85;
+	/* Lines are copied and pasted whole, so they must not wrap mid-attribute. */
+	white-space: pre;
+}
+
+.plpm__code code {
+	padding: 0;
+	background: none;
+	color: var( --plpm-text );
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.plpm__comment {
+	color: #6f7a8b;
+}
+
+.plpm__tag {
+	color: var( --plpm-tag );
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.plpm__attr {
+	color: var( --plpm-attr );
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.plpm__value {
+	color: var( --plpm-value );
+}
+
+/* --- Tables --- */
+
+.plpm__scroll {
+	margin: 0 0 20px;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.plpm__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14.5px;
+}
+
+.plpm__table th {
+	padding: 10px 14px 10px 0;
+	color: var( --plpm-muted );
+	font-size: 11.5px;
+	font-weight: 600;
+	letter-spacing: 0.1em;
+	text-align: left;
+	text-transform: uppercase;
+	border-bottom: 1px solid var( --plpm-border );
+	white-space: nowrap;
+}
+
+.plpm__table td {
+	padding: 12px 14px 12px 0;
+	vertical-align: top;
+	border-bottom: 1px solid rgba( 42, 47, 58, 0.6 );
+}
+
+.plpm__table code {
+	padding: 0;
+	background: none;
+	font-size: 13.5px;
+}
+
+.plpm__table tr:last-child td {
+	border-bottom: 0;
+}
+
+/* --- Callout --- */
+
+.plpm__note {
+	margin: 0 0 20px;
+	padding: 16px 18px;
+	background: var( --plpm-panel );
+	border: 1px solid var( --plpm-border );
+	border-radius: var( --plpm-radius );
+}
+
+.plpm__note-label {
+	display: block;
+	margin-bottom: 6px;
+	color: var( --plpm-accent );
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+	font-size: 11.5px;
+	letter-spacing: 0.1em;
+}
+
+.plpm__note p {
+	margin: 0;
+	font-size: 15px;
+}
+
+/* --- Narrow screens --- */
+
+@media ( max-width: 640px ) {
+	.plpm {
+		padding: 24px 16px 40px;
+		border-radius: 0;
+		font-size: 15.5px;
+	}
+
+	.plpm__h1 {
+		font-size: 24px;
+	}
+
+	.plpm__h2 {
+		font-size: 19px;
+	}
+
+	.plpm__code {
+		font-size: 12.5px;
+	}
+}
