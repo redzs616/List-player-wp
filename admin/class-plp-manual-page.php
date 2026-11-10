@@ -20,6 +20,7 @@ class PLP_Manual_Page {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'add_page' ) );
 		add_action( 'admin_post_plp_create_manual', array( __CLASS__, 'handle' ) );
+		add_action( 'admin_post_plp_create_demos', array( __CLASS__, 'handle_demos' ) );
 	}
 
 	/**
@@ -156,6 +157,57 @@ class PLP_Manual_Page {
 				?>
 			</form>
 
+			<hr style="margin:34px 0" />
+
+			<h2><?php esc_html_e( 'Demó oldalak', 'pl-player' ); ?></h2>
+			<p style="max-width:720px">
+				<?php esc_html_e( 'Minden elrendezésből készülhet egy oldal a saját zenéiddel, hogy egymás mellett lásd őket és eldönthesd, melyik kell. Ezek is privátak: csak bejelentkezve látszanak, a látogatók nem találnak rájuk.', 'pl-player' ); ?>
+			</p>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="plp_create_demos" />
+				<?php wp_nonce_field( 'plp_create_demos' ); ?>
+
+				<table class="wp-list-table widefat striped" style="max-width:860px">
+					<thead>
+						<tr>
+							<td class="check-column"></td>
+							<th><?php esc_html_e( 'Oldal', 'pl-player' ); ?></th>
+							<th><?php esc_html_e( 'Shortcode', 'pl-player' ); ?></th>
+							<th><?php esc_html_e( 'Állapot', 'pl-player' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( PLP_Manual::demos() as $key => $demo ) : ?>
+							<?php $id = PLP_Manual::demo_id( $key ); ?>
+							<tr>
+								<th scope="row" class="check-column">
+									<?php if ( ! $id ) : ?>
+										<input type="checkbox" name="plp_demos[]" value="<?php echo esc_attr( $key ); ?>" checked="checked" />
+									<?php endif; ?>
+								</th>
+								<td>
+									<strong><?php echo esc_html( $demo['title'] ); ?></strong><br />
+									<span class="description"><?php echo esc_html( $demo['note'] ); ?></span>
+								</td>
+								<td><code style="font-size:12px"><?php echo esc_html( $demo['shortcode'] ); ?></code></td>
+								<td>
+									<?php if ( $id ) : ?>
+										<a href="<?php echo esc_url( (string) get_permalink( $id ) ); ?>" target="_blank" rel="noopener">
+											<?php esc_html_e( 'Megnézem', 'pl-player' ); ?>
+										</a>
+									<?php else : ?>
+										<span class="description"><?php esc_html_e( 'még nincs', 'pl-player' ); ?></span>
+									<?php endif; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+
+				<?php submit_button( __( 'A kijelölt demó oldalak létrehozása', 'pl-player' ), 'secondary' ); ?>
+			</form>
+
 			<h2><?php esc_html_e( 'Kézzel is beilleszthető', 'pl-player' ); ?></h2>
 			<p style="max-width:720px">
 				<?php esc_html_e( 'Ha inkább magad készíted el az oldalt, csak írd be ezt bárhová — oldalba, bejegyzésbe, Divi szöveg- vagy kódmodulba:', 'pl-player' ); ?>
@@ -198,6 +250,25 @@ class PLP_Manual_Page {
 			printf(
 				'<div class="notice notice-success is-dismissible"><p>%s</p></div>',
 				esc_html__( 'A kézikönyv oldal elkészült.', 'pl-player' )
+			);
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$demos = isset( $_GET['plp_demos_made'] ) ? absint( $_GET['plp_demos_made'] ) : -1;
+
+		if ( $demos >= 0 ) {
+			printf(
+				'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+				$demos ? 'success' : 'info',
+				esc_html(
+					$demos
+						? sprintf(
+							/* translators: %d: number of pages. */
+							_n( '%d demó oldal elkészült.', '%d demó oldal elkészült.', $demos, 'pl-player' ),
+							$demos
+						)
+						: __( 'Nem készült új demó oldal — vagy már mind megvolt, vagy nem jelöltél ki egyet sem.', 'pl-player' )
+				)
 			);
 		}
 
@@ -252,6 +323,39 @@ class PLP_Manual_Page {
 			array(
 				'plp_created' => $existing ? 0 : 1,
 				'plp_linked'  => $linked,
+			)
+		);
+	}
+
+	/**
+	 * Creates the demo pages that were ticked.
+	 */
+	public static function handle_demos() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Nincs jogosultságod ehhez a művelethez.', 'pl-player' ) );
+		}
+
+		check_admin_referer( 'plp_create_demos' );
+
+		$wanted = isset( $_POST['plp_demos'] ) ? array_map( 'sanitize_key', (array) $_POST['plp_demos'] ) : array();
+		$made   = 0;
+		$failed = '';
+
+		foreach ( $wanted as $key ) {
+			$id = PLP_Manual::create_demo( $key );
+
+			if ( is_wp_error( $id ) ) {
+				$failed = $id->get_error_message();
+				continue;
+			}
+
+			$made++;
+		}
+
+		self::back(
+			array(
+				'plp_demos_made' => $made,
+				'plp_failed'     => $failed,
 			)
 		);
 	}

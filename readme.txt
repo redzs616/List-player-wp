@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.13.0
+Stable tag: 1.14.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -80,6 +80,18 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.14.0 — demó oldalak):
+
+* Új szakasz a Lejátszó → Kézikönyv oldalon: minden elrendezésből egy
+  kattintással készül egy oldal a saját zenéiddel — kiemelt panel, kártyás
+  rács, tömör lista, popup lejátszó, lejátszási listák, toplista.
+* Így egymás mellett látod őket a valódi tartalmaddal, és eldöntheted, melyik
+  kell, ahelyett hogy leírásból találgatnál.
+* Ezek is privátak: csak bejelentkezve látszanak, a látogatók nem találnak
+  rájuk.
+* Kétszer futtatva nem készít másolatokat — a meglévőt megtalálja, és a
+  táblázatban „Megnézem" linkként mutatja.
 
 Elkészült (1.13.0 — ambiens vizualizáció, és közzétehető kézikönyv):
 

@@ -101,6 +101,107 @@ class PLP_Manual {
 		return (int) $id;
 	}
 
+	/* ---------------------------------------------------------------------
+	 * Demo pages
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * The demo pages on offer.
+	 *
+	 * One page per layout, so the options can be compared side by side on the real
+	 * library rather than from a description. Private by default, like the handbook:
+	 * these are for choosing, not for visitors.
+	 *
+	 * @return array Keyed by slug suffix.
+	 */
+	public static function demos() {
+		return array(
+			'hero'   => array(
+				'title'     => __( 'Demó — kiemelt panel', 'pl-player' ),
+				'shortcode' => '[playlist_player layout="hero" equalizer="always" nav_limit="10"]',
+				'note'      => __( 'Nagy borító, cím, csúszka, fejezetek. Ez a leglátványosabb.', 'pl-player' ),
+			),
+			'grid'   => array(
+				'title'     => __( 'Demó — kártyás rács', 'pl-player' ),
+				'shortcode' => '[playlist_player layout="grid" columns="3"]',
+				'note'      => __( 'Borítós kártyák rácsban. Sok számnál áttekinthető.', 'pl-player' ),
+			),
+			'list'   => array(
+				'title'     => __( 'Demó — tömör lista', 'pl-player' ),
+				'shortcode' => '[playlist_player layout="list" limit="25"]',
+				'note'      => __( 'Egy sor egy szám. A legtöbb fér el a legkevesebb helyen.', 'pl-player' ),
+			),
+			'popup'  => array(
+				'title'     => __( 'Demó — popup lejátszó', 'pl-player' ),
+				'shortcode' => '[playlist_player layout="hero" popup="yes"]',
+				'note'      => __( 'A „Külön ablakban" gombbal: a zene külön ablakban folytatja, így szabadon járkálhatsz az oldalon.', 'pl-player' ),
+			),
+			'lists'  => array(
+				'title'     => __( 'Demó — lejátszási listák', 'pl-player' ),
+				'shortcode' => '[playlist_index columns="3"]',
+				'note'      => __( 'A listáid borítóval, hosszal. Rákattintva megnyílik a lejátszóban.', 'pl-player' ),
+			),
+			'stats'  => array(
+				'title'     => __( 'Demó — toplista', 'pl-player' ),
+				'shortcode' => '[playlist_stats limit="10" show="both" trend="yes" days="30"]',
+				'note'      => __( 'Legtöbbet hallgatott és legkedveltebb számok, forgalmi grafikonnal.', 'pl-player' ),
+			),
+		);
+	}
+
+	/**
+	 * Creates one demo page.
+	 *
+	 * Finds an existing page by slug first, so running this twice does not litter the
+	 * site with copies.
+	 *
+	 * @param string $key    Demo key.
+	 * @param string $status Post status.
+	 * @return int|WP_Error Page ID.
+	 */
+	public static function create_demo( $key, $status = 'private' ) {
+		$demos = self::demos();
+
+		if ( ! isset( $demos[ $key ] ) ) {
+			return new WP_Error( 'plp_unknown_demo', __( 'Ismeretlen demó.', 'pl-player' ) );
+		}
+
+		$demo = $demos[ $key ];
+		$slug = 'lejatszo-demo-' . $key;
+
+		$found = get_page_by_path( $slug, OBJECT, 'page' );
+
+		if ( $found ) {
+			return (int) $found->ID;
+		}
+
+		$status = in_array( $status, array( 'private', 'publish' ), true ) ? $status : 'private';
+
+		return wp_insert_post(
+			array(
+				'post_type'    => 'page',
+				'post_status'  => $status,
+				'post_title'   => $demo['title'],
+				'post_name'    => $slug,
+				'post_content' => $demo['shortcode'],
+				'post_author'  => get_current_user_id(),
+			),
+			true
+		);
+	}
+
+	/**
+	 * Whether a demo page already exists.
+	 *
+	 * @param string $key Demo key.
+	 * @return int Page ID or 0.
+	 */
+	public static function demo_id( $key ) {
+		$found = get_page_by_path( 'lejatszo-demo-' . sanitize_key( $key ), OBJECT, 'page' );
+
+		return ( $found && 'trash' !== $found->post_status ) ? (int) $found->ID : 0;
+	}
+
 	/**
 	 * Adds the handbook page to a navigation menu, unless it is already there.
 	 *
@@ -108,7 +209,7 @@ class PLP_Manual {
 	 * @param int $page_id Page ID.
 	 * @return bool Whether something was added.
 	 */
-	public static function add_to_menu( $menu_id, $page_id ) {
+	public static function add_to_menu( $menu_id, $page_id, $title = '' ) {
 		$menu_id = absint( $menu_id );
 		$page_id = absint( $page_id );
 
@@ -130,7 +231,7 @@ class PLP_Manual {
 				'menu-item-object-id' => $page_id,
 				'menu-item-object'    => 'page',
 				'menu-item-type'      => 'post_type',
-				'menu-item-title'     => __( 'Kézikönyv', 'pl-player' ),
+				'menu-item-title'     => $title ? $title : get_the_title( $page_id ),
 				'menu-item-status'    => 'publish',
 			)
 		);
