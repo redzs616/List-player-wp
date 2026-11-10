@@ -98,6 +98,8 @@ class PLP_Renderer {
 			// Kept apart from the resolved ID so that a named-but-missing playlist can
 			// fail as "nothing to show" instead of silently widening to the whole library.
 			'playlist_asked' => '' !== trim( (string) $atts['playlist'] ),
+			// The reference as written, for handing on to the popup when it did not resolve.
+			'playlist_ref'   => sanitize_title( (string) $atts['playlist'] ),
 			// `always` overrides the visitor's reduced-motion preference. Worth having
 			// as an explicit opt-in: an equalizer is the feature itself, not decorative
 			// chrome, so some owners will want it regardless.
@@ -168,6 +170,37 @@ class PLP_Renderer {
 		}
 
 		return array_values( array_unique( array_filter( $ids ) ) );
+	}
+
+	/**
+	 * This player's listing, as query arguments for the popup.
+	 *
+	 * The popup renders a player of its own, so whatever narrows this one has to travel
+	 * with the link. Without it every pop-out button opened the whole library, whatever
+	 * the player it sat on was showing.
+	 *
+	 * @param array $config Configuration from config().
+	 * @return array Empty values are dropped by PLP_Popup::url().
+	 */
+	private static function popup_args( array $config ) {
+		$args = array(
+			'terms'     => implode( ',', $config['terms'] ),
+			'post_type' => implode( ',', $config['post_types'] ),
+		);
+
+		if ( $config['playlist_asked'] ) {
+			// A list that did not resolve still goes along by name, so the popup comes up
+			// empty like this player does, rather than widening to everything.
+			$args['playlist'] = $config['playlist'] ? (string) $config['playlist'] : $config['playlist_ref'];
+
+			// A playlist plays in its own order; sorting does not apply to it.
+			return $args;
+		}
+
+		$args['orderby'] = $config['orderby'];
+		$args['order']   = $config['order'];
+
+		return $args;
 	}
 
 	/* ---------------------------------------------------------------------
@@ -281,7 +314,7 @@ class PLP_Renderer {
 
 					<?php if ( $config['show_popup'] ) : ?>
 						<button type="button" class="plp-popout"
-							data-plp-popup="<?php echo esc_url( PLP_Popup::url( array( 'terms' => implode( ',', $config['terms'] ) ) ) ); ?>"
+							data-plp-popup="<?php echo esc_url( PLP_Popup::url( self::popup_args( $config ) ) ); ?>"
 							title="<?php esc_attr_e( 'Külön ablakban folytatja, így oldalváltásnál sem szakad meg', 'pl-player' ); ?>">
 							<span class="plp-icon plp-icon--popout" aria-hidden="true"></span>
 							<?php esc_html_e( 'Külön ablakban', 'pl-player' ); ?>

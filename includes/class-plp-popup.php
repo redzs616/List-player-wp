@@ -56,10 +56,33 @@ class PLP_Popup {
 			return;
 		}
 
-		$track = isset( $_GET['track'] ) ? absint( $_GET['track'] ) : 0;
-		$at    = isset( $_GET['t'] ) ? absint( $_GET['t'] ) : 0;
-		$terms = isset( $_GET['terms'] ) ? sanitize_text_field( wp_unslash( $_GET['terms'] ) ) : '';
+		$track    = isset( $_GET['track'] ) ? absint( $_GET['track'] ) : 0;
+		$at       = isset( $_GET['t'] ) ? absint( $_GET['t'] ) : 0;
+		$terms    = isset( $_GET['terms'] ) ? sanitize_text_field( wp_unslash( $_GET['terms'] ) ) : '';
+		$types    = isset( $_GET['post_type'] ) ? sanitize_text_field( wp_unslash( $_GET['post_type'] ) ) : '';
+		$playlist = isset( $_GET['playlist'] ) ? sanitize_title( wp_unslash( $_GET['playlist'] ) ) : '';
+		$orderby  = isset( $_GET['orderby'] ) ? sanitize_key( wp_unslash( $_GET['orderby'] ) ) : '';
+		$order    = isset( $_GET['order'] ) ? sanitize_key( wp_unslash( $_GET['order'] ) ) : '';
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+		// Only the source types the player is set up to show; anything else in the
+		// address is dropped rather than passed on.
+		$types = implode(
+			',',
+			array_intersect(
+				array_filter( array_map( 'sanitize_key', explode( ',', $types ) ) ),
+				PLP_Source::post_types()
+			)
+		);
+
+		// The same choices the REST route accepts. PLP_Source::ordering() would fall
+		// back to date for anything else anyway, but the value is also handed to the
+		// script, which should not see junk.
+		if ( ! in_array( $orderby, array( 'date', 'title', 'plays', 'likes', 'random', 'menu_order' ), true ) ) {
+			$orderby = 'date';
+		}
+
+		$order = 'asc' === $order ? 'asc' : 'desc';
 
 		nocache_headers();
 
@@ -72,16 +95,23 @@ class PLP_Popup {
 		wp_enqueue_style( 'plp-player' );
 		wp_enqueue_script( 'plp-player' );
 
+		// The same listing as the player the visitor popped out of. The renderer resolves
+		// the playlist (PLP_Playlist::resolve, so an unpublished list stays private) and
+		// then shows its tracks in the list's own order.
 		$player = PLP_Renderer::render(
 			array(
-				'terms'   => $terms,
-				'layout'  => 'list',
-				'limit'   => 50,
-				'nav'     => 'no',
-				'search'  => 'no',
-				'sort'    => 'no',
-				'popup'   => 'no',
-				'theme'   => 'dark',
+				'terms'     => $terms,
+				'post_type' => $types,
+				'playlist'  => $playlist,
+				'orderby'   => $orderby,
+				'order'     => $order,
+				'layout'    => 'list',
+				'limit'     => 50,
+				'nav'       => 'no',
+				'search'    => 'no',
+				'sort'      => 'no',
+				'popup'     => 'no',
+				'theme'     => 'dark',
 			)
 		);
 
@@ -117,8 +147,9 @@ class PLP_Popup {
 
 	<script>
 		( function () {
-			var id = <?php echo (int) $track; ?>;
-			var at = <?php echo (int) $at; ?>;
+			var id    = <?php echo (int) $track; ?>;
+			var at    = <?php echo (int) $at; ?>;
+			var tries = 0;
 
 			if ( ! id ) {
 				return;
@@ -131,7 +162,11 @@ class PLP_Popup {
 					return;
 				}
 
-				window.setTimeout( start, 120 );
+				// A track that is not in this list never turns up, so give up after a
+				// few seconds instead of polling for as long as the window is open.
+				if ( ++tries < 40 ) {
+					window.setTimeout( start, 120 );
+				}
 			};
 
 			start();

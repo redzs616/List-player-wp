@@ -2918,8 +2918,16 @@
 		}
 
 		var state = window.PLPlayerAPI.current();
+		var list  = button.closest( '.plp' );
 
-		if ( state ) {
+		// The popup shows this player's tracks only. A track playing from another player
+		// on the page (another tab, say) could not carry on there, so it is left playing
+		// here rather than cut off.
+		var handOver = !! ( state && list && list.querySelector(
+			'.plp-track[data-id="' + String( state.id ).replace( /"/g, '' ) + '"]'
+		) );
+
+		if ( handOver ) {
 			url += ( url.indexOf( '?' ) === -1 ? '?' : '&' ) +
 				'track=' + encodeURIComponent( state.id ) +
 				'&t=' + encodeURIComponent( state.time );
@@ -2936,7 +2944,10 @@
 		}
 
 		// Two windows playing the same track over each other would be nonsense.
-		window.PLPlayerAPI.pause();
+		if ( handOver ) {
+			window.PLPlayerAPI.pause();
+		}
+
 		popup.focus();
 	}
 

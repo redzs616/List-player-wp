@@ -81,7 +81,19 @@ tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézb
 
 == Fejlesztési állapot ==
 
-Elkészült (1.14.0 — demó oldalak):
+Elkészült (1.14.0 — demó oldalak, és a popup a saját listáját mutatja):
+
+**A „Külön ablakban" gomb azt nyitja meg, amit a lejátszó mutat.** Eddig a
+felugró ablak csak a kategóriát kapta meg, így minden gomb a teljes könyvtárat
+nyitotta — benne a hang nélküli elemekkel is. Most a forrástípus (`post_type`),
+a lejátszási lista (`playlist`) és a rendezés (`orderby`, `order`) is átmegy;
+a lejátszási lista a saját sorrendjében jelenik meg, a nem publikus lista
+továbbra sem látszik.
+
+* Ha egy másik lejátszó (például másik fül) száma szól, a gomb nem állítja le:
+  a zene az oldalon szól tovább, a felugró ablak a kért listát mutatja.
+* A felugró ablak nem keresi a végtelenségig az átadott számot, ha az nincs a
+  listájában — pár másodperc után feladja.
 
 * Új szakasz a Lejátszó → Kézikönyv oldalon: minden elrendezésből egy
   kattintással készül egy oldal a saját zenéiddel — kiemelt panel, kártyás
