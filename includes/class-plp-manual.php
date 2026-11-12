@@ -641,8 +641,18 @@ class PLP_Manual {
 				array( 'equalizer="yes"', __( 'alap', 'pl-player' ), __( 'Ambiens vizualizáció a képernyő alján.', 'pl-player' ) ),
 				array( 'equalizer="always"', '—', __( 'Akkor is fut, ha a látogató csökkentett mozgást kért.', 'pl-player' ) ),
 				array( 'equalizer="hero"', '—', __( 'A régi, panelen belüli kompakt változat.', 'pl-player' ) ),
-				array( 'equalizer="no"', '—', __( 'Nincs vizualizáció.', 'pl-player' ) ),
+				array( 'equalizer="no"', '—', __( 'Nincs vizualizáció: nem jön létre vászon és hangelemző, és nem fut rajzolás sem.', 'pl-player' ) ),
 			)
+		);
+
+		self::note(
+			__( 'AZ EGÉSZ OLDALON KIKAPCSOLVA', 'pl-player' ),
+			__( 'Lejátszó → Beállítások → Megjelenés → Ambiens vizualizáció. Kikapcsolva egyik lejátszón sem jelenik meg, a Divi-modulos lejátszókon sem, mert azoknak nincs saját equalizer mezőjük. Egy oldalon csak akkor jelenik meg, ha az oldal valamelyik lejátszóján be van kapcsolva.', 'pl-player' )
+		);
+
+		self::note(
+			__( 'TELEFONON', 'pl-player' ),
+			__( 'Kis képernyőn a vizualizáció kevesebb sávval, alacsonyabb felbontással és másodpercenként 30 képkockával fut, hogy az oldal görgetése és a gombok ne akadjanak meg.', 'pl-player' )
 		);
 
 		self::note(

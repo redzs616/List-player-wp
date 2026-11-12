@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.14.0
+Stable tag: 1.14.1
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -80,6 +80,28 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.14.1 — az ambiens vizualizáció kikapcsolható, és telefonon nem akaszt):
+
+**Az `equalizer="no"` végre kikapcsolja az ambiens vizualizációt.** Eddig a
+képernyő alján futó vászon minden lejátszós oldalra kikerült, a beállítástól
+függetlenül. Most csak akkor jelenik meg, ha az oldal valamelyik lejátszóján be
+van kapcsolva. `equalizer="no"` mellett nincs vászon, nem jön létre hangelemző
+(AudioContext), és nem fut rajzolás sem.
+
+* Új kapcsoló: Lejátszó → Beállítások → Megjelenés → Ambiens vizualizáció.
+  Kikapcsolva az egész oldalon eltűnik, a Divi-modulos lejátszókon is, mert
+  azoknak nincs saját equalizer mezőjük.
+* Sokkal könnyebb rajzolás. A ragyogást eddig elmosás (shadowBlur) adta, sávonként
+  és képkockánként: telefonméretben egy asztali gépen is ~11 ms ment el egy
+  képkockára a 16,7-ből, telefonon ez megakasztotta az oldalt. Most egy halvány,
+  széles vonal adja a ragyogást, a vászon felbontása korlátozott, a színek
+  egyszer számolódnak, és telefonon 30 képkocka/mp a keret (36 sáv). Mérve
+  telefonnézetben: ~3,5 ms helyett ~0,8 ms egy képkocka, feleannyi képkockával.
+* Ha lejátszás közben egy vizualizáció nélküli lejátszó számára váltasz, a vászon
+  elhalványul, nem marad rajta megfagyott kép.
+* `equalizer="always"` csökkentett mozgás mellett is látszik (eddig a stíluslap
+  elrejtette, a rajzolás közben láthatatlanul futott).
 
 Elkészült (1.14.0 — demó oldalak, és a popup a saját listáját mutatja):
 

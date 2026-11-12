@@ -1805,8 +1805,11 @@
 	opacity: 0.72;
 }
 
+/* The script marks the canvas when a player said `equalizer="always"`: the owner
+   decided the motion is the point, so the visitor's reduced-motion setting does not
+   hide it. Without the mark the script would draw into a canvas nobody can see. */
 @media ( prefers-reduced-motion: reduce ) {
-	.plp-ambient {
+	.plp-ambient:not( .is-forced ) {
 		display: none;
 	}
 }

@@ -74,6 +74,9 @@ function plp_get_settings() {
 		// the site actually is.
 		'public_trend'             => 1,
 		'guest_likes'              => 1,
+		// The page-wide ambient visualiser. Players can still opt out one by one with
+		// `equalizer="no"`; this turns it off for the whole site.
+		'ambient'                  => 1,
 		'play_threshold_seconds'   => 15,
 		'play_threshold_percent'   => 30,
 		'play_cooldown_hours'      => 6,

@@ -26,6 +26,17 @@ class PLP_Renderer {
 	private static $bar_queued = false;
 
 	/**
+	 * Whether any player on this page asked for the page-wide ambient visualiser.
+	 *
+	 * The canvas used to go out with the bar unconditionally, so `equalizer="no"`
+	 * still left it drawing across the page. Now it is printed only when a player
+	 * wants it.
+	 *
+	 * @var bool
+	 */
+	private static $ambient_wanted = false;
+
+	/**
 	 * Hooks the footer bar.
 	 */
 	public static function init() {
@@ -132,11 +143,35 @@ class PLP_Renderer {
 	private static function equalizer_mode( $value ) {
 		$value = strtolower( trim( $value ) );
 
-		if ( in_array( $value, array( 'always', 'hero' ), true ) ) {
+		if ( 'hero' === $value ) {
 			return $value;
 		}
 
-		return self::is_yes( $value ) ? 'yes' : 'no';
+		if ( 'always' === $value ) {
+			$mode = 'always';
+		} else {
+			$mode = self::is_yes( $value ) ? 'yes' : 'no';
+		}
+
+		// The site-wide switch in Settings turns the ambient version off everywhere,
+		// including players that cannot say `equalizer="no"` themselves (the Divi
+		// module has no such field). The compact in-panel `hero` version is left alone.
+		if ( 'no' !== $mode && ! self::ambient_enabled() ) {
+			return 'no';
+		}
+
+		return $mode;
+	}
+
+	/**
+	 * Whether the page-wide ambient visualiser is allowed on this site at all.
+	 *
+	 * @return bool
+	 */
+	public static function ambient_enabled() {
+		$settings = plp_get_settings();
+
+		return ! empty( $settings['ambient'] );
 	}
 
 	/**
@@ -245,6 +280,10 @@ class PLP_Renderer {
 
 		self::$bar_queued = true;
 
+		if ( in_array( $config['equalizer'], array( 'yes', 'always' ), true ) ) {
+			self::$ambient_wanted = true;
+		}
+
 		$settings   = plp_get_settings();
 		$show_stats = ! empty( $settings['public_stats'] );
 
@@ -261,6 +300,9 @@ class PLP_Renderer {
 			'showStats'  => $show_stats,
 			'page'       => 1,
 			'totalPages' => (int) $query->max_num_pages,
+			// The visualiser mode, for every layout. Before this only the hero panel
+			// carried it, so a list player had no way to say "no".
+			'eq'         => $config['equalizer'],
 		);
 
 		$style = $config['accent'] ? 'style="--plp-accent:' . esc_attr( $config['accent'] ) . '"' : '';
@@ -1132,8 +1174,11 @@ class PLP_Renderer {
 		<?php // The ambient visualiser: one canvas for the whole page, pinned to the
 			// bottom of the viewport and sitting behind everything. In the panel it was
 			// a small rectangle competing with the title for attention; down here it
-			// reads as the page breathing with the music. ?>
-		<canvas class="plp-ambient" id="plp-ambient" aria-hidden="true" hidden></canvas>
+			// reads as the page breathing with the music. Only when some player on the
+			// page asked for it: `equalizer="no"` means no canvas, no audio graph, no loop. ?>
+		<?php if ( self::$ambient_wanted ) : ?>
+			<canvas class="plp-ambient" id="plp-ambient" aria-hidden="true" hidden></canvas>
+		<?php endif; ?>
 
 		<div class="plp-bar" id="plp-bar" hidden>
 			<div class="plp-bar__inner">

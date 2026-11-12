@@ -97,6 +97,7 @@ class PLP_Settings_Page {
 			'public_listening'         => empty( $input['public_listening'] ) ? 0 : 1,
 			'public_trend'             => empty( $input['public_trend'] ) ? 0 : 1,
 			'guest_likes'              => empty( $input['guest_likes'] ) ? 0 : 1,
+			'ambient'                  => empty( $input['ambient'] ) ? 0 : 1,
 			'play_threshold_seconds'   => min( 120, max( 1, absint( isset( $input['play_threshold_seconds'] ) ? $input['play_threshold_seconds'] : 15 ) ) ),
 			'play_threshold_percent'   => min( 100, max( 1, absint( isset( $input['play_threshold_percent'] ) ? $input['play_threshold_percent'] : 30 ) ) ),
 			'play_cooldown_hours'      => min( 168, max( 1, absint( isset( $input['play_cooldown_hours'] ) ? $input['play_cooldown_hours'] : 6 ) ) ),
@@ -224,6 +225,25 @@ class PLP_Settings_Page {
 								</label>
 								<p class="description">
 									<?php esc_html_e( 'A vendégeket egy véletlen azonosítójú süti különbözteti meg egymástól. Személyes adatot nem tárol, és IP-cím sem kerül az adatbázisba.', 'pl-player' ); ?>
+								</p>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<h2><?php esc_html_e( 'Megjelenés', 'pl-player' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tbody>
+						<tr>
+							<th scope="row"><?php esc_html_e( 'Ambiens vizualizáció', 'pl-player' ); ?></th>
+							<td>
+								<label>
+									<input type="checkbox" name="<?php echo esc_attr( self::OPTION ); ?>[ambient]" value="1"
+										<?php checked( 1, (int) $settings['ambient'] ); ?> />
+									<?php esc_html_e( 'Zenére mozgó sávok a képernyő alján, lejátszás közben', 'pl-player' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'Kikapcsolva egyetlen oldalon sem jelenik meg, a Divi-modulos lejátszókon sem. Egy-egy lejátszón a shortcode equalizer="no" beállításával is kikapcsolható. A panelen belüli equalizer="hero" változatot ez a kapcsoló nem érinti.', 'pl-player' ); ?>
 								</p>
 							</td>
 						</tr>

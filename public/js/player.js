@@ -1481,37 +1481,84 @@
 		analyser: null,
 		data: null,
 		frame: null,
-		flatFrames: 0,
+		// When the analyser last went completely quiet during playback, 0 if it is not.
+		flatSince: 0,
 		failed: false,
 		// Smoothed bar levels, so the meter falls instead of strobing.
 		levels: null,
+		// How far a bar falls in one frame, scaled to the time since the last one.
+		decay: 0.88,
 		// Follows the playing track, which is what ties the visualiser to the panel.
-		hue: 250
+		hue: 250,
+		// The canvas currently being drawn on, so a loop that outlives its player
+		// can let go of it.
+		canvas: null,
+		// Timestamp of the last drawn frame.
+		last: 0,
+		// Phone-sized screen: fewer frames, fewer pixels, fewer bars.
+		small: false,
+		// Colours resolved once per track rather than per frame.
+		colours: null,
+		// Reused between frames, so drawing allocates nothing.
+		points: []
 	};
 
 	var reducedMotion = window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches;
 
 	/**
-	 * The canvas the visualiser draws on.
+	 * The visualiser mode of the player that is playing: no, yes, always or hero.
 	 *
-	 * The page-level ambient canvas wins when it is there. The old in-panel canvas
-	 * stays supported for `equalizer="hero"`, because someone may want the compact
-	 * version inside the panel rather than across the page.
+	 * It is the shortcode's `equalizer` attribute, carried in the player's config so
+	 * every layout has it, not only the hero one. Markup cached from before 1.14.1 has
+	 * no `eq` key; for that the old reading off the panel canvas still applies.
 	 */
-	function eqCanvas() {
-		var ambient = q( '#plp-ambient' );
-
-		if ( ambient && ! heroEqForced() ) {
-			return ambient;
+	function eqMode() {
+		if ( ! currentList ) {
+			return 'no';
 		}
 
-		return currentList ? q( '[data-plp-eq]', currentList ) : null;
+		var mode = config( currentList ).eq;
+
+		if ( mode ) {
+			return mode;
+		}
+
+		var panel = q( '[data-plp-eq]', currentList );
+
+		if ( ! panel ) {
+			return 'yes';
+		}
+
+		if ( 'hero' === panel.getAttribute( 'data-plp-eq-where' ) ) {
+			return 'hero';
+		}
+
+		return '1' === panel.getAttribute( 'data-plp-eq-force' ) ? 'always' : 'yes';
 	}
 
-	function heroEqForced() {
-		var panel = currentList ? q( '[data-plp-eq]', currentList ) : null;
+	/**
+	 * The canvas the visualiser draws on, or null when this player has none.
+	 *
+	 * The page-level ambient canvas is the default. The old in-panel canvas stays
+	 * supported for `equalizer="hero"`, because someone may want the compact version
+	 * inside the panel rather than across the page. With `equalizer="no"` there is
+	 * nothing to draw on, which is what keeps the audio graph and the loop from
+	 * ever starting.
+	 */
+	function eqCanvas() {
+		var mode = eqMode();
 
-		return !! ( panel && 'hero' === panel.getAttribute( 'data-plp-eq-where' ) );
+		if ( 'no' === mode ) {
+			return null;
+		}
+
+		var panel = q( '[data-plp-eq]', currentList );
+
+		if ( 'hero' === mode ) {
+			return panel;
+		}
+
+		return q( '#plp-ambient' ) || panel;
 	}
 
 	function isAmbient( canvas ) {
@@ -1528,15 +1575,7 @@
 	 * point of the panel rather than decoration.
 	 */
 	function eqAllowed() {
-		if ( ! reducedMotion ) {
-			return true;
-		}
-
-		// The setting lives on the panel's canvas, because that is where the shortcode
-		// wrote it. The ambient canvas is page-level and carries no shortcode of its own.
-		var settings = currentList ? q( '[data-plp-eq]', currentList ) : null;
-
-		return !! ( settings && '1' === settings.getAttribute( 'data-plp-eq-force' ) );
+		return ! reducedMotion || 'always' === eqMode();
 	}
 
 	function ensureAnalyser() {
@@ -1578,12 +1617,53 @@
 		return true;
 	}
 
-	function drawEq() {
-		var canvas = eqCanvas();
+	function drawEq( now ) {
+		var canvas = eqAllowed() ? eqCanvas() : null;
+
+		// The playing player can change under a running loop: from one with the
+		// visualiser to one without, or from the panel to the page. Let go of the old
+		// canvas instead of leaving its last frame frozen on screen.
+		if ( canvas !== viz.canvas ) {
+			if ( viz.canvas ) {
+				viz.canvas.classList.remove( 'is-live' );
+			}
+
+			viz.canvas = canvas;
+
+			if ( canvas && ! audio.paused ) {
+				canvas.classList.add( 'is-live' );
+			}
+
+			if ( isAmbient( canvas ) ) {
+				// Drawing under reduced motion means the owner asked for `always`, which
+				// the stylesheet's reduced-motion rule has to let through.
+				canvas.classList.toggle( 'is-forced', reducedMotion );
+			}
+		}
 
 		if ( ! canvas || ! viz.analyser ) {
+			viz.frame = null;
+
 			return;
 		}
+
+		viz.frame = window.requestAnimationFrame( drawEq );
+
+		var ambient = isAmbient( canvas );
+
+		// A frame budget. The ambient layer is soft and slow, so on a phone 30 frames
+		// a second look the same as 60 and leave the page twice the room; elsewhere
+		// it is held at 60 so a 144 Hz screen does not draw it 144 times a second.
+		if ( viz.last && now - viz.last < ( ambient && viz.small ? 29 : 12 ) ) {
+			return;
+		}
+
+		var elapsed = viz.last ? now - viz.last : 16.7;
+
+		viz.last = now;
+		// The fall is per frame, so it is scaled to the time that passed: the meter
+		// then drops at the same speed whatever the frame rate.
+		viz.decay = Math.pow( 0.88, Math.min( 4, elapsed / 16.7 ) );
 
 		viz.analyser.getByteFrequencyData( viz.data );
 
@@ -1597,24 +1677,32 @@
 		if ( 0 === total ) {
 			// Only count silence against us while something is actually playing; a
 			// paused moment is not evidence of anything.
-			if ( ! audio.paused ) {
-				viz.flatFrames++;
+			if ( ! audio.paused && ! viz.flatSince ) {
+				viz.flatSince = now;
 			}
 
 			// Three seconds of complete silence during playback means the analyser
 			// cannot see this file — give up rather than leave a dead row sitting there.
-			if ( viz.flatFrames > 180 ) {
+			if ( viz.flatSince && now - viz.flatSince > 3000 ) {
 				canvas.hidden = true;
 				stopEq();
 
 				return;
 			}
 		} else {
-			viz.flatFrames = 0;
+			viz.flatSince = 0;
 			canvas.hidden = false;
 		}
 
 		var ratio = window.devicePixelRatio || 1;
+
+		if ( ambient ) {
+			// The ambient layer is masked, faded and glowing; full retina resolution
+			// buys nothing visible there, and on a phone it costs up to nine times
+			// the pixels.
+			ratio = Math.min( ratio, viz.small ? 1 : 1.5 );
+		}
+
 		var width = canvas.clientWidth;
 		var height = canvas.clientHeight;
 
@@ -1628,13 +1716,11 @@
 		g.setTransform( ratio, 0, 0, ratio, 0, 0 );
 		g.clearRect( 0, 0, width, height );
 
-		if ( isAmbient( canvas ) ) {
+		if ( ambient ) {
 			drawAmbientFrame( g, width, height );
 		} else {
 			drawPanelFrame( g, width, height );
 		}
-
-		viz.frame = window.requestAnimationFrame( drawEq );
 	}
 
 	/**
@@ -1656,21 +1742,41 @@
 			viz.levels = new Float32Array( count );
 		}
 
-		var falling = viz.levels[ index ] * 0.88;
+		var falling = viz.levels[ index ] * viz.decay;
 
 		viz.levels[ index ] = target > falling ? target : falling;
 
 		return viz.levels[ index ];
 	}
 
+	/**
+	 * The ladder colours and the ring's shades for the playing track.
+	 *
+	 * Resolved once per player and hue. This used to call getComputedStyle on every
+	 * frame, which makes the browser settle the page's styles sixty times a second.
+	 */
 	function ladderColours() {
-		var styles = getComputedStyle( currentList || document.body );
+		var cached = viz.colours;
 
-		return {
+		if ( cached && cached.list === currentList && cached.hue === viz.hue ) {
+			return cached;
+		}
+
+		var styles = getComputedStyle( currentList || document.body );
+		var hue = viz.hue;
+
+		viz.colours = {
+			list: currentList,
+			hue: hue,
 			low: styles.getPropertyValue( '--plp-eq-low' ).trim() || '#1fe06b',
 			mid: styles.getPropertyValue( '--plp-eq-mid' ).trim() || '#ffcf1a',
-			high: styles.getPropertyValue( '--plp-eq-high' ).trim() || '#ff3b2f'
+			high: styles.getPropertyValue( '--plp-eq-high' ).trim() || '#ff3b2f',
+			cool: 'hsl(' + ( hue + 30 ) + ' 90% 74%)',
+			base: 'hsl(' + hue + ' 80% 48%)',
+			body: 'hsl(' + hue + ' 85% 62%)'
 		};
+
+		return viz.colours;
 	}
 
 	/**
@@ -1713,11 +1819,15 @@
 	 * with distance, and that is the whole of the 3D: no library, no WebGL, just the
 	 * projection done by hand.
 	 */
+	function byDepth( a, b ) {
+		return a.depth - b.depth;
+	}
+
 	function drawAmbientFrame( g, width, height ) {
 		// Fewer bars than the panel version on purpose: at this size thin ones read as
-		// scratchy noise rather than as a shape.
-		var bars = 54;
-		var hue = viz.hue;
+		// scratchy noise rather than as a shape. Fewer still on a phone, where 54
+		// crowd into a hedge and every one costs two strokes.
+		var bars = width < 600 ? 36 : 54;
 		var colours = ladderColours();
 
 		// Tied to the clock rather than to the frame count, so it turns at the same
@@ -1732,32 +1842,28 @@
 		var ry = height * 0.3;
 		var tallest = height * 0.82;
 
-		var points = [];
+		var points = viz.points;
 		var i;
+
+		points.length = bars;
 
 		for ( i = 0; i < bars; i++ ) {
 			var angle = ( ( i / bars ) * Math.PI * 2 ) + spin;
 			var depth = Math.sin( angle );
+			var spot = points[ i ] || ( points[ i ] = {} );
 
-			points.push( {
-				x: cx + ( rx * Math.cos( angle ) ),
-				y: cy + ( ry * depth ),
-				depth: depth,
-				value: levelAt( i, bars )
-			} );
+			spot.x = cx + ( rx * Math.cos( angle ) );
+			spot.y = cy + ( ry * depth );
+			spot.depth = depth;
+			spot.value = levelAt( i, bars );
 		}
 
 		// Far bars first, so the near ones overlap them.
-		points.sort( function ( a, b ) {
-			return a.depth - b.depth;
-		} );
+		points.sort( byDepth );
 
-		// A soft bloom is most of what separates this from a bar chart. Set once rather
-		// than per bar, because changing shadow state is the expensive part.
-		g.shadowBlur = 18;
 		g.lineCap = 'round';
 
-		for ( i = 0; i < points.length; i++ ) {
+		for ( i = 0; i < bars; i++ ) {
 			var point = points[ i ];
 			// 0 at the back of the ring, 1 at the front.
 			var near = ( point.depth + 1 ) / 2;
@@ -1768,20 +1874,34 @@
 
 			var peak = point.value > 0.88;
 			var warm = point.value > 0.7;
-			var tip = peak ? colours.high : ( warm ? colours.mid : 'hsl(' + ( hue + 30 ) + ' 90% 74%)' );
+			var tip = peak ? colours.high : ( warm ? colours.mid : colours.cool );
+
+			// Distance dims as well as shrinks. Without this the far arc reads as a
+			// second row of equally loud bars instead of as depth.
+			var alpha = 0.34 + ( near * 0.5 );
+
+			// A soft bloom is most of what separates this from a bar chart. It used to
+			// be shadowBlur, which runs a blur pass per bar per frame: measured at phone
+			// size it took ~11 ms of a 16.7 ms frame on a desktop machine, so on a phone
+			// it took the whole page down with it. One wide, faint stroke under each bar
+			// reads almost the same for a fraction of the cost.
+			g.globalAlpha = alpha * 0.2;
+			g.strokeStyle = tip;
+			g.lineWidth = barWidth * 2.4;
+			g.beginPath();
+			g.moveTo( point.x, point.y );
+			g.lineTo( point.x, top );
+			g.stroke();
 
 			var shaft = g.createLinearGradient( 0, point.y, 0, top );
 
-			shaft.addColorStop( 0, 'hsl(' + hue + ' 80% 48%)' );
-			shaft.addColorStop( 0.65, 'hsl(' + hue + ' 85% 62%)' );
+			shaft.addColorStop( 0, colours.base );
+			shaft.addColorStop( 0.65, colours.body );
 			shaft.addColorStop( 1, tip );
 
+			g.globalAlpha = alpha;
 			g.strokeStyle = shaft;
-			g.shadowColor = tip;
 			g.lineWidth = barWidth;
-			// Distance dims as well as shrinks. Without this the far arc reads as a
-			// second row of equally loud bars instead of as depth.
-			g.globalAlpha = 0.34 + ( near * 0.5 );
 
 			// Stroked with a round cap rather than filled: the cap gives each bar a
 			// lit tip, which is what makes the ring look like objects and not ticks.
@@ -1791,7 +1911,6 @@
 			g.stroke();
 		}
 
-		g.shadowBlur = 0;
 		g.globalAlpha = 1;
 	}
 
@@ -1858,7 +1977,12 @@
 		}
 
 		if ( null === viz.frame ) {
-			viz.flatFrames = 0;
+			viz.flatSince = 0;
+			viz.last = 0;
+			// Picked up fresh on each start, so a changed theme or palette shows.
+			viz.colours = null;
+			viz.small = window.innerWidth < 768 ||
+				!! ( window.matchMedia && window.matchMedia( '(pointer: coarse)' ).matches );
 			viz.frame = window.requestAnimationFrame( drawEq );
 		}
 	}
@@ -1873,7 +1997,7 @@
 	function fadeEq() {
 		stopEq();
 
-		var canvas = eqCanvas();
+		var canvas = viz.canvas || eqCanvas();
 
 		if ( canvas ) {
 			canvas.classList.remove( 'is-live' );
