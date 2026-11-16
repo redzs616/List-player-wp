@@ -23,12 +23,15 @@ class PLP_Source {
 	 * Post types the player is allowed to include.
 	 *
 	 * The plugin's own track type is always in the list — it cannot be switched off.
+	 * The playlist type never is: a playlist is a set of tracks, not a track, and an
+	 * old setting that still names it is ignored here.
 	 *
 	 * @return string[]
 	 */
 	public static function post_types() {
 		$settings = plp_get_settings();
 		$types    = array_map( 'sanitize_key', (array) $settings['post_types'] );
+		$types    = array_diff( $types, array( PLP_Post_Types::PLAYLIST ) );
 
 		if ( ! in_array( PLP_Post_Types::TRACK, $types, true ) ) {
 			$types[] = PLP_Post_Types::TRACK;
@@ -428,18 +431,24 @@ class PLP_Source {
 			case 'likes':
 				// Safe to order by meta_key: every supported post gets its counters
 				// seeded, so nothing silently drops out of the result set.
+				// The ID is the tie-break: without one, equal counters come back in
+				// whatever order MySQL likes, which can differ between two pages.
 				return array(
 					'meta_key' => 'plays' === $orderby ? '_pl_plays' : '_pl_likes', // phpcs:ignore WordPress.DB.SlowDBQuery
-					'orderby'  => 'meta_value_num',
-					'order'    => $order,
+					'orderby'  => array(
+						'meta_value_num' => $order,
+						'ID'             => $order,
+					),
 				);
 
 			case 'title':
 				// Always alphabetical: a title list that starts at Z only ever looks
 				// like a bug.
 				return array(
-					'orderby' => 'title',
-					'order'   => 'ASC',
+					'orderby' => array(
+						'title' => 'ASC',
+						'ID'    => 'ASC',
+					),
 				);
 
 			case 'random':
@@ -450,13 +459,19 @@ class PLP_Source {
 					'orderby' => array(
 						'menu_order' => 'ASC',
 						'date'       => 'DESC',
+						'ID'         => 'DESC',
 					),
 				);
 
 			default:
+				// Tracks imported in one go share a timestamp to the second. The ID
+				// keeps their order the same on every page, so "Több" can neither
+				// repeat a track nor skip one.
 				return array(
-					'orderby' => 'date',
-					'order'   => $order,
+					'orderby' => array(
+						'date' => $order,
+						'ID'   => $order,
+					),
 				);
 		}
 	}

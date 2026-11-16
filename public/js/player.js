@@ -2459,8 +2459,11 @@
 			params.terms = cfg.terms.join( ',' );
 		}
 
+		// Every source type the player was set up with, not just the first. A mixed
+		// player (podcast and track) that sent one would lose the other type from the
+		// second page on, and from every search and filter.
 		if ( cfg.postTypes && cfg.postTypes.length ) {
-			params.post_type = cfg.postTypes[0];
+			params.post_type = cfg.postTypes.join( ',' );
 		}
 
 		if ( cfg.search ) {

@@ -39,8 +39,9 @@ class PLP_Rest {
 						'default'     => '',
 					),
 					'post_type' => array(
-						'type'    => 'string',
-						'default' => '',
+						'description' => __( 'Forrástípusok, vesszővel. Üresen minden engedélyezett típus.', 'pl-player' ),
+						'type'        => 'string',
+						'default'     => '',
 					),
 					// Without this a playlist survives only the first paint: every later
 					// fetch — a search, a sort, a page — would fall back to the whole
@@ -295,10 +296,15 @@ class PLP_Rest {
 	 */
 	public static function get_tracks( WP_REST_Request $request ) {
 		$post_types = PLP_Source::post_types();
-		$requested  = sanitize_key( (string) $request->get_param( 'post_type' ) );
 
-		if ( $requested && in_array( $requested, $post_types, true ) ) {
-			$post_types = array( $requested );
+		// A comma-separated list. sanitize_key() on the whole string would glue the
+		// names into one that matches nothing, so each name is cleaned on its own and
+		// only the allowed ones are kept. An empty or unknown list means every type.
+		$requested = array_filter( array_map( 'sanitize_key', explode( ',', (string) $request->get_param( 'post_type' ) ) ) );
+		$requested = array_values( array_intersect( $requested, $post_types ) );
+
+		if ( $requested ) {
+			$post_types = $requested;
 		}
 
 		$config = array(

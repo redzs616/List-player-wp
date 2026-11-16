@@ -342,6 +342,12 @@ class PLP_Manual_Page {
 		$failed = '';
 
 		foreach ( $wanted as $key ) {
+			// create_demo() hands back a page that is already there, so without this
+			// check an existing page would be counted — and announced — as new.
+			if ( PLP_Manual::demo_id( $key ) ) {
+				continue;
+			}
+
 			$id = PLP_Manual::create_demo( $key );
 
 			if ( is_wp_error( $id ) ) {

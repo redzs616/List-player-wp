@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.14.1
+Stable tag: 1.14.2
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -80,6 +80,22 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.14.2 — a vegyes lejátszó lapozása, a rendezés és a demó oldalak javítása):
+
+**A több típusú lejátszó (például podcast és szám együtt) a „Több" gomb, a keresés
+és a szűrés után is mindkét típust mutatja.** Eddig a böngésző csak az első
+típust küldte a szervernek, ezért a második oldaltól csak podcast jött, és az
+elemek egy része kimaradt. A szerver most vesszővel elválasztott típuslistát
+fogad (`post_type=podcast,pl_track`), a nem engedélyezett nevet pedig eldobja.
+
+* Azonos időbélyegű elemeknél az azonosító dönt a sorrendben (dátum, cím,
+  lejátszás, like és menü szerinti rendezésnél is), így két oldal között nem
+  ismétlődik és nem marad ki szám.
+* A `pl_playlist` tartalomtípus végleg kikerült a forrástípusok közül: nem
+  jelenik meg a Beállításokban, és egy régi mentett érték sem számít.
+* A demó oldalak „elkészült" üzenete már csak az újonnan létrehozott oldalakat
+  számolja, a meglévőt nem.
 
 Elkészült (1.14.1 — az ambiens vizualizáció kikapcsolható, és telefonon nem akaszt):
 

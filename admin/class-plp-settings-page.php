@@ -79,7 +79,8 @@ class PLP_Settings_Page {
 		foreach ( (array) ( isset( $input['post_types'] ) ? $input['post_types'] : array() ) as $post_type ) {
 			$post_type = sanitize_key( $post_type );
 
-			if ( $post_type && post_type_exists( $post_type ) ) {
+			// The playlist type is not a source of tracks and is never saved as one.
+			if ( $post_type && PLP_Post_Types::PLAYLIST !== $post_type && post_type_exists( $post_type ) ) {
 				$post_types[] = $post_type;
 			}
 		}
@@ -462,7 +463,7 @@ class PLP_Settings_Page {
 		echo '</tr></thead><tbody>';
 
 		foreach ( $types as $type ) {
-			if ( 'attachment' === $type->name ) {
+			if ( 'attachment' === $type->name || PLP_Post_Types::PLAYLIST === $type->name ) {
 				continue;
 			}
 
