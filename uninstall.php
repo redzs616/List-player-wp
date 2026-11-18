@@ -73,6 +73,7 @@ if ( $plp_cron ) {
 // Options and cached lookups.
 delete_option( 'plp_settings' );
 delete_option( 'plp_db_version' );
+delete_metadata( 'user', 0, 'plp_resume', '', true );
 delete_option( 'plp_last_compaction' );
 // Only the pointer. The handbook page itself is a page the owner made and may have
 // edited, so removing it is their call, not ours.

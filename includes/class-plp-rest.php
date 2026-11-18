@@ -282,6 +282,127 @@ class PLP_Rest {
 				'permission_callback' => '__return_true',
 			)
 		);
+
+		// Where a signed-in listener stopped, kept with their account so another device
+		// can carry on from there. Guests keep using the per-tab memory in the browser.
+		register_rest_route(
+			self::NAMESPACE_V1,
+			'/me/resume',
+			array(
+				array(
+					'methods'             => WP_REST_Server::READABLE,
+					'callback'            => array( __CLASS__, 'get_resume' ),
+					'permission_callback' => array( __CLASS__, 'is_signed_in' ),
+				),
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( __CLASS__, 'post_resume' ),
+					'permission_callback' => array( __CLASS__, 'is_signed_in' ),
+					'args'                => array(
+						'id'   => array(
+							'type'     => 'integer',
+							'required' => true,
+							'minimum'  => 1,
+						),
+						'time' => array(
+							'type'     => 'number',
+							'required' => true,
+							'minimum'  => 0,
+						),
+						'list' => array(
+							'type'    => 'string',
+							'default' => '',
+						),
+						'page' => array(
+							'type'    => 'string',
+							'default' => '',
+						),
+					),
+				),
+			)
+		);
+	}
+
+	/* ---------------------------------------------------------------------
+	 * Resume position
+	 * ------------------------------------------------------------------ */
+
+	const RESUME_META = 'plp_resume';
+
+	/**
+	 * Cookie sessions only count with a valid REST nonce, so this is false for a
+	 * request that merely carries the login cookie.
+	 *
+	 * @return bool
+	 */
+	public static function is_signed_in() {
+		return is_user_logged_in();
+	}
+
+	/**
+	 * The caller's saved position, or null.
+	 *
+	 * @return WP_REST_Response
+	 */
+	public static function get_resume() {
+		do_action( 'litespeed_control_set_nocache', 'pl-player resume' );
+
+		$state = get_user_meta( get_current_user_id(), self::RESUME_META, true );
+
+		if ( ! is_array( $state ) || empty( $state['id'] ) || ! self::is_playable( (int) $state['id'] ) ) {
+			$state = null;
+		}
+
+		return self::no_store( rest_ensure_response( array( 'state' => $state ) ) );
+	}
+
+	/**
+	 * Stores the caller's position. Newest write wins; the server clock decides.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public static function post_resume( WP_REST_Request $request ) {
+		do_action( 'litespeed_control_set_nocache', 'pl-player resume' );
+
+		$id = absint( $request->get_param( 'id' ) );
+
+		if ( ! self::is_playable( $id ) ) {
+			return new WP_Error( 'plp_bad_track', __( 'Ismeretlen szám.', 'pl-player' ), array( 'status' => 400 ) );
+		}
+
+		// Only a path on this site, so a stored value can never send the listener away.
+		$page = (string) $request->get_param( 'page' );
+		$path = wp_parse_url( $page, PHP_URL_PATH );
+		$page = ( is_string( $path ) && 0 === strpos( $path, '/' ) && 0 !== strpos( $path, '//' ) )
+			? substr( esc_url_raw( $path ), 0, 300 )
+			: '';
+
+		$state = array(
+			'id'      => $id,
+			'time'    => round( min( (float) $request->get_param( 'time' ), 86400 ), 1 ),
+			'list'    => substr( sanitize_text_field( (string) $request->get_param( 'list' ) ), 0, 300 ),
+			'page'    => $page,
+			'updated' => time(),
+		);
+
+		update_user_meta( get_current_user_id(), self::RESUME_META, $state );
+
+		return self::no_store( rest_ensure_response( array( 'state' => $state ) ) );
+	}
+
+	/**
+	 * Whether an ID is a published post of a type the player serves.
+	 *
+	 * @param int $id Post ID.
+	 * @return bool
+	 */
+	private static function is_playable( $id ) {
+		$post = $id ? get_post( $id ) : null;
+
+		return $post
+			&& 'publish' === $post->post_status
+			&& in_array( $post->post_type, PLP_Source::post_types(), true );
 	}
 
 	/* ---------------------------------------------------------------------

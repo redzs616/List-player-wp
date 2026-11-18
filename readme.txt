@@ -2,7 +2,7 @@
 Requires at least: 6.0
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.14.2
+Stable tag: 1.15.0
 License: GPL-2.0-or-later
 
 Kategóriákba rendezett zenelejátszó WordPress oldalra, nyilvános lejátszás- és
@@ -80,6 +80,16 @@ A token szándékosan nem az admin felületen állítható be — az adatbázisb
 tárolt token egy adatbázis-szivárgással együtt kerülne illetéktelen kézbe.
 
 == Fejlesztési állapot ==
+
+Elkészült (1.15.0 — folytatás másik eszközön):
+
+**A bejelentkezett hallgató ott folytathatja telefonon, ahol a gépen abbahagyta.**
+A lejátszó a számot, a másodpercet és a lejátszót (melyik lista az oldalon)
+a fiókhoz menti (`plp_resume` user meta, `GET`/`POST plplayer/v1/me/resume`):
+lejátszás közben 15 másodpercenként, indításkor, szünetkor, és amikor a lap
+háttérbe kerül vagy bezárul. Betöltéskor, illetve amikor egy szüneteltetett
+lapra visszatér, a legfrissebb mentett helyet tölti be szüneteltetve. Ha a szám
+nincs a listában, azonosító alapján lekéri. Vendégeknél nem változik semmi.
 
 Elkészült (1.14.2 — a vegyes lejátszó lapozása, a rendezés és a demó oldalak javítása):
 

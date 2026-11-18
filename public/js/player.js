@@ -2230,7 +2230,7 @@
 	 * Resuming across page loads
 	 * --------------------------------------------------------------- */
 
-	function saveState() {
+	function saveState( leaving ) {
 		// Only worth remembering once the visitor actually started something. The hero
 		// panel preselects a track so its controls have a target, and saving that would
 		// make the sticky bar pop open unprompted on the next page they visit.
@@ -2244,6 +2244,239 @@
 				time: audio.currentTime
 			} ) );
 		} catch ( error ) {}
+
+		saveRemote( leaving );
+	}
+
+	/* ------------------------------------------------------------------
+	 * Resuming on another device (signed-in listeners only)
+	 *
+	 * The position also goes to the listener's account, so a phone can pick up
+	 * where the computer stopped. The server clock orders the writes; the newest
+	 * one wins. Guests have no nonce and never reach any of this.
+	 * --------------------------------------------------------------- */
+
+	var REMOTE_EVERY = 15000;
+	var lastRemoteSave = 0;
+	var remoteStamp = 0;
+	var remoteBusy = false;
+
+	function canRemote() {
+		return !! PLPlayer.nonce;
+	}
+
+	/**
+	 * Which player on the page the track was in: its position among the players
+	 * plus the shortcode settings it was printed with. The page path is kept
+	 * separately, so the same tab on the same page is found again.
+	 */
+	function listKey( list ) {
+		if ( ! list ) {
+			return '';
+		}
+
+		return qa( '.plp' ).indexOf( list ) + '|' + ( list.getAttribute( 'data-plp' ) || '' ).slice( 0, 250 );
+	}
+
+	function remoteBody() {
+		var body = new URLSearchParams();
+		body.set( 'id', currentItem.getAttribute( 'data-id' ) );
+		body.set( 'time', ( audio.currentTime || 0 ).toFixed( 1 ) );
+		body.set( 'list', listKey( currentList ) );
+		body.set( 'page', window.location.pathname );
+
+		return body;
+	}
+
+	function saveRemote( leaving ) {
+		if ( ! canRemote() || ! currentItem || ! hasPlayed ) {
+			return;
+		}
+
+		lastRemoteSave = Date.now();
+
+		var body = remoteBody();
+
+		// The page may be going away: a beacon still gets out, and a beacon cannot
+		// carry a header, so the nonce rides in the query string, which WordPress
+		// accepts as well.
+		if ( leaving ) {
+			var url = endpoint( '/me/resume', { _wpnonce: PLPlayer.nonce } );
+			var sent = false;
+
+			if ( navigator.sendBeacon ) {
+				try {
+					sent = navigator.sendBeacon( url, body );
+				} catch ( error ) {
+					sent = false;
+				}
+			}
+
+			if ( ! sent ) {
+				fetch( url, {
+					method: 'POST',
+					body: body,
+					credentials: 'same-origin',
+					keepalive: true
+				} ).catch( function () {} );
+			}
+
+			return;
+		}
+
+		var data = {};
+
+		body.forEach( function ( value, key ) {
+			data[ key ] = value;
+		} );
+
+		request( '/me/resume', null, { method: 'POST', body: data } ).then( function ( response ) {
+			if ( response && response.state && response.state.updated ) {
+				remoteStamp = Math.max( remoteStamp, response.state.updated );
+			}
+		} ).catch( function () {} );
+	}
+
+	/** Called on every timeupdate; writes at most once per REMOTE_EVERY. */
+	function maybeSaveRemote() {
+		if ( audio.paused || Date.now() - lastRemoteSave < REMOTE_EVERY ) {
+			return;
+		}
+
+		saveState();
+	}
+
+	function seekWhenReady( time ) {
+		if ( ! ( time > 0 ) ) {
+			return;
+		}
+
+		function apply() {
+			if ( ! audio.duration || time < audio.duration ) {
+				audio.currentTime = time;
+				paintProgress();
+			}
+		}
+
+		if ( audio.readyState >= 1 ) {
+			apply();
+
+			return;
+		}
+
+		audio.addEventListener( 'loadedmetadata', function once() {
+			audio.removeEventListener( 'loadedmetadata', once );
+			apply();
+		} );
+
+		audio.load();
+	}
+
+	/** The player the saved key points at, or the best stand-in for it. */
+	function listForKey( key ) {
+		var lists = qa( '.plp' );
+		var parts = String( key || '' ).split( '|' );
+		var index = parseInt( parts[0], 10 );
+		var settings = parts.slice( 1 ).join( '|' );
+
+		if ( lists[ index ] && ( lists[ index ].getAttribute( 'data-plp' ) || '' ).slice( 0, 250 ) === settings ) {
+			return lists[ index ];
+		}
+
+		for ( var i = 0; i < lists.length; i++ ) {
+			if ( settings && ( lists[ i ].getAttribute( 'data-plp' ) || '' ).slice( 0, 250 ) === settings ) {
+				return lists[ i ];
+			}
+		}
+
+		return lists[0] || null;
+	}
+
+	/**
+	 * Loads a saved position into the player, paused. Browsers refuse to start
+	 * sound on their own, and the listener presses play when ready.
+	 */
+	function applyRemote( state ) {
+		var id = String( state.id ).replace( /\D/g, '' );
+
+		if ( ! id ) {
+			return;
+		}
+
+		if ( currentItem && currentItem.getAttribute( 'data-id' ) === id ) {
+			if ( Math.abs( ( audio.currentTime || 0 ) - state.time ) > 2 ) {
+				showBar();
+				seekWhenReady( state.time );
+			}
+
+			return;
+		}
+
+		var list = listForKey( state.list );
+		var item = q( '.plp-track[data-id="' + id + '"]', list ) || q( '.plp-track[data-id="' + id + '"]' );
+
+		if ( item ) {
+			select( item, item.closest( '.plp' ), false );
+			seekWhenReady( state.time );
+
+			return;
+		}
+
+		if ( ! list ) {
+			return;
+		}
+
+		// Not on screen — a later page, another category, a search. Fetched by id
+		// and put at the top of the list it was played from, as a shared link is.
+		request( '/tracks', { include: id, per_page: 1 } ).then( function ( data ) {
+			var track = ( data.tracks || [] )[0];
+			var listing = q( '.plp-list', list );
+
+			// The listener may have started something in the meantime.
+			if ( ! track || ! listing || ! audio.paused ) {
+				return;
+			}
+
+			var fresh = buildItem( track, !! config( list ).showStats );
+
+			listing.insertBefore( fresh, listing.firstChild );
+			loadCounters( list );
+			probeRights( list );
+			select( fresh, list, false );
+			seekWhenReady( state.time );
+		} ).catch( function () {} );
+	}
+
+	/**
+	 * Asks the server for the saved position and loads it if it is newer than
+	 * what this page already knows, and nothing is playing here.
+	 */
+	function pullRemote() {
+		if ( ! canRemote() || remoteBusy || sharedTrackId() ) {
+			return;
+		}
+
+		remoteBusy = true;
+
+		request( '/me/resume' ).then( function ( data ) {
+			remoteBusy = false;
+
+			var state = data && data.state;
+
+			if ( ! state || ! state.id || ! ( state.updated > remoteStamp ) ) {
+				return;
+			}
+
+			remoteStamp = state.updated;
+
+			if ( ! audio.paused ) {
+				return;
+			}
+
+			applyRemote( state );
+		} ).catch( function () {
+			remoteBusy = false;
+		} );
 	}
 
 	function restoreState() {
@@ -2909,6 +3142,8 @@
 		audio.addEventListener( 'play', function () {
 			hasPlayed = true;
 			paintPlaying( true );
+			// A new track, or a resume: the account learns about it straight away.
+			saveRemote();
 
 			var canvas = eqCanvas();
 
@@ -2936,6 +3171,7 @@
 			paintProgress();
 			maybeCountPlay();
 			trackProgress();
+			maybeSaveRemote();
 		} );
 
 		audio.addEventListener( 'loadedmetadata', paintProgress );
@@ -2955,8 +3191,18 @@
 		} );
 
 		window.addEventListener( 'pagehide', function () {
-			saveState();
+			saveState( true );
 			flushProgress();
+		} );
+
+		// Phones often switch apps without ever firing pagehide. Hidden: write the
+		// position out. Visible again and idle: another device may have moved on.
+		document.addEventListener( 'visibilitychange', function () {
+			if ( 'hidden' === document.visibilityState ) {
+				saveState( true );
+			} else if ( audio.paused ) {
+				pullRemote();
+			}
 		} );
 
 		// Rotating a phone changes how many rows the bar wraps onto.
@@ -3103,6 +3349,7 @@
 		lists.forEach( wireList );
 
 		restoreState();
+		pullRemote();
 	}
 
 	if ( 'loading' === document.readyState ) {
